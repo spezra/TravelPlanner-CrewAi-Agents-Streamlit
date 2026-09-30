@@ -5,6 +5,7 @@
 import * as calls from "@/modules/calls/jobs";
 import * as crm from "@/modules/crm/jobs";
 import * as money from "@/modules/money/jobs";
+import * as ops from "@/modules/ops/jobs";
 import * as proposals from "@/modules/proposals/jobs";
 import type { JobHandler } from "./queue";
 import type { Schedule } from "./scheduler";
@@ -21,6 +22,6 @@ const platform: Record<string, JobHandler> = {
   },
 };
 
-export const HANDLERS: Record<string, JobHandler> = { ...platform, ...proposals.handlers, ...calls.handlers, ...crm.handlers, ...money.handlers };
+export const HANDLERS: Record<string, JobHandler> = { ...platform, ...proposals.handlers, ...calls.handlers, ...crm.handlers, ...money.handlers, ...ops.handlers };
 
-export const SCHEDULES: Schedule[] = [{ kind: "platform.purge_expired", everyMinutes: 60 }, ...proposals.schedules, ...calls.schedules, ...crm.schedules, ...money.schedules];
+export const SCHEDULES: Schedule[] = [{ kind: "platform.purge_expired", everyMinutes: 60 }, ...proposals.schedules, ...calls.schedules, ...crm.schedules, ...money.schedules, ...ops.schedules];
