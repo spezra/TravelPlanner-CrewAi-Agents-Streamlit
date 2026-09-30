@@ -131,3 +131,23 @@ export function createBlankProposal(db: Db, tenant: Tenant, tripId: string) {
     return p.id;
   });
 }
+
+export function requestShortlist(db: Db, tenant: Tenant, tripId: string, need: string) {
+  const text = need.trim();
+  if (text.length < 5) throw new DomainError("too_short", "Describe the need (e.g. 'quiet hotel in Oaxaca for 5 nights').");
+  return withTenant(db, tenant, async (q) => {
+    if (!(await getTrip(q, tripId))) throw new DomainError("not_found", "Trip not found");
+    const id = randomUUID();
+    await q.query("insert into option_shortlists (id, workspace_id, trip_id, need, requested_by) values ($1, $2, $3, $4, $5)", [id, tenant.workspaceId, tripId, text.slice(0, 500), tenant.memberId]);
+    await enqueueAsTenant(q, { kind: "proposals.scout", payload: { shortlistId: id }, dedupeKey: `proposals.scout:${id}`, maxAttempts: 3 });
+    return id;
+  });
+}
+
+export async function listShortlists(q: Queryable, tripId: string) {
+  const { rows } = await q.query<{ id: string; need: string; status: string; result: unknown; created_at: string }>(
+    "select id, need, status, result, created_at from option_shortlists where trip_id = $1 order by created_at desc limit 5",
+    [tripId],
+  );
+  return rows;
+}

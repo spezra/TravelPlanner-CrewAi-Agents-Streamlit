@@ -123,3 +123,30 @@ describe("proposal workflow", async () => {
     await expect(withTenant(db, { workspaceId: DEMO.otherWorkspace, memberId: DEMO.otherExpert }, (q) => svc.listProposals(q, DEMO.trip))).resolves.toEqual([]);
   });
 });
+
+describe("option scout", async () => {
+  const { scoutOptions } = await import("@/agents/optionScout");
+  it("keeps only the expert's own suppliers and suggests the network when evidence is thin", async () => {
+    const llm: StructuredLLM = {
+      async generate<S extends z.ZodType>(req: StructuredRequest<S>) {
+        return {
+          ok: true as const,
+          value: req.schema.parse({
+            options: [
+              { supplier: "Hacienda", fit: "Quiet casitas", concerns: null, observation_ids: ["obs-1"] },
+              { supplier: "Famous Hotel Nobody Recorded", fit: "Prestige", concerns: null, observation_ids: [] },
+            ],
+            gap: null,
+          }) as z.infer<S>,
+        };
+      },
+    };
+    const r = await scoutOptions(llm, { need: "quiet hotel", brief: [], tasteNotes: [], observations: [{ ...observation(), supplierName: "Hacienda" }], now: NOW });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.options.map((o) => [o.supplier, o.bestTier])).toEqual([["Hacienda", "recommend"]]);
+    expect(r.suggestNetwork).toBe(false);
+    const stale = await scoutOptions(llm, { need: "quiet hotel", brief: [], tasteNotes: [], observations: [{ ...observation({ observedAt: "2021-01-01" }), supplierName: "Hacienda" }], now: NOW });
+    if ("error" in stale) throw new Error(stale.error);
+    expect(stale.suggestNetwork).toBe(true);
+  });
+});

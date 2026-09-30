@@ -4,8 +4,9 @@ import { agentsConfigured } from "@/agents/llm";
 import { getTrip } from "@/db/repo";
 import { withTenant } from "@/db/tenant";
 import { getDb, requireMember } from "@/lib/server";
-import { listProposals, reviewFor } from "@/modules/proposals/service";
-import { blankAction, draftAction, saveAction, sendAction, styleSampleAction } from "./actions";
+import type { ScoutedOption } from "@/agents/optionScout";
+import { listProposals, listShortlists, reviewFor } from "@/modules/proposals/service";
+import { blankAction, draftAction, saveAction, scoutAction, sendAction, styleSampleAction } from "./actions";
 
 export const metadata = { title: "Proposal" };
 export const dynamic = "force-dynamic";
@@ -19,10 +20,10 @@ export default async function ProposalPage({ params, searchParams }: { params: P
     if (!trip) return null;
     const proposals = await listProposals(q, tripId);
     const current = proposals[0] ?? null;
-    return { trip, proposals, current, issues: current ? await reviewFor(q, current) : [] };
+    return { trip, proposals, current, issues: current ? await reviewFor(q, current) : [], shortlists: await listShortlists(q, tripId) };
   });
   if (!data) notFound();
-  const { trip, proposals, current, issues } = data;
+  const { trip, proposals, current, issues, shortlists } = data;
   const isOwner = trip.ownerId === tenant.memberId;
 
   return (
@@ -104,6 +105,40 @@ export default async function ProposalPage({ params, searchParams }: { params: P
               Earlier versions: {proposals.slice(1).map((p) => `v${p.version} (${p.status})`).join(", ")}
             </p>
           )}
+        </>
+      )}
+
+      {agentsConfigured() && (
+        <>
+          <h2>Options from your knowledge</h2>
+          <form action={scoutAction} className="card">
+            <input type="hidden" name="tripId" value={trip.id} />
+            <label htmlFor="need">What do you need options for?</label>
+            <input id="need" type="text" name="need" placeholder="Quiet hotel in Oaxaca for 5 nights, walkable to the centre" />
+            <div className="actions">
+              <button className="btn">Prepare shortlist</button>
+            </div>
+          </form>
+          {shortlists.map((s) => {
+            const r = s.result as { options: ScoutedOption[]; gap: string | null; suggestNetwork: boolean } | null;
+            return (
+              <section key={s.id} className="card">
+                <div className="row">
+                  <b className="grow">{s.need}</b>
+                  <span className="chip">{s.status}</span>
+                </div>
+                {r?.options.map((o) => (
+                  <div key={o.supplier} className="small" style={{ marginTop: 6 }}>
+                    <b>{o.supplier}</b> <span className={`chip ${o.bestTier === "retain" ? "warn" : "ok"}`}>{o.bestTier}</span> — {o.fit}
+                    {o.concerns && <span className="muted"> · {o.concerns}</span>}
+                    <div className="muted">{o.evidence.map((e) => e.provenance).join("; ") || "no linked observation"}</div>
+                  </div>
+                ))}
+                {r?.gap && <p className="small muted">Gap: {r.gap}</p>}
+                {r?.suggestNetwork && <p className="small">Your own records are thin here — consider asking a network specialist.</p>}
+              </section>
+            );
+          })}
         </>
       )}
 

@@ -39,3 +39,22 @@ create policy tenant on style_samples to app_user
   using (workspace_id = app_workspace() and owner_id = app_member())
   with check (workspace_id = app_workspace() and owner_id = app_member());
 create policy system_all on style_samples to app_system using (true) with check (true);
+
+-- Shortlists prepared by the option scout from the expert's own knowledge.
+create table option_shortlists (
+  id uuid primary key,
+  workspace_id uuid not null references workspaces(id),
+  trip_id uuid not null references trips(id) on delete cascade,
+  need text not null,
+  status text not null default 'pending' check (status in ('pending', 'ready', 'failed')),
+  result jsonb,
+  requested_by uuid not null references members(id),
+  created_at timestamptz not null default now()
+);
+alter table option_shortlists enable row level security;
+alter table option_shortlists force row level security;
+grant select, insert, update, delete on option_shortlists to app_user, app_system;
+create policy tenant on option_shortlists to app_user
+  using (workspace_id = app_workspace() and exists (select 1 from trips t where t.id = trip_id))
+  with check (workspace_id = app_workspace());
+create policy system_all on option_shortlists to app_system using (true) with check (true);

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { DomainError } from "@/domain/common";
 import { requireMember } from "@/server/auth/session";
 import { getDb } from "@/server/db";
-import { addStyleSample, createBlankProposal, requestDraft, saveEdit, sendProposal } from "@/modules/proposals/service";
+import { addStyleSample, createBlankProposal, requestDraft, requestShortlist, saveEdit, sendProposal } from "@/modules/proposals/service";
 
 const Id = z.string().uuid();
 
@@ -63,4 +63,10 @@ export async function styleSampleAction(form: FormData) {
   const { tenant } = await requireMember();
   const tripId = Id.parse(form.get("tripId"));
   return run(tripId, async () => addStyleSample(await getDb(), tenant, String(form.get("body") ?? "")), "Writing sample saved");
+}
+
+export async function scoutAction(form: FormData) {
+  const { tenant } = await requireMember();
+  const tripId = Id.parse(form.get("tripId"));
+  return run(tripId, async () => requestShortlist(await getDb(), tenant, tripId, String(form.get("need") ?? "")), "Preparing options — refresh in a minute.");
 }
