@@ -16,8 +16,12 @@ export const money = (amountMinor: number, currency = "USD"): Money => {
   return { amountMinor, currency };
 };
 
+/** Minor-unit exponent per ISO 4217 (JPY has none, KWD has three), as Intl reports it. */
+export const currencyExponent = (currency: string): number =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+
 export const formatMoney = (m: Money): string =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: m.currency }).format(m.amountMinor / 100);
+  new Intl.NumberFormat("en-US", { style: "currency", currency: m.currency }).format(m.amountMinor / 10 ** currencyExponent(m.currency));
 
 export type Role = "owner" | "advisor" | "assistant" | "admin";
 

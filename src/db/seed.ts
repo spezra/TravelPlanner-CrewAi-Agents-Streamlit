@@ -8,6 +8,7 @@ import { requestApproval } from "@/domain/approvals";
 import type { TripItem } from "@/domain/bookings";
 import { seedCalls } from "@/modules/calls/seed";
 import { seedCrm } from "@/modules/crm/seed";
+import { seedMoney } from "@/modules/money/seed";
 import type { Db } from "./client";
 import { insertApproval, insertCommitment, insertItem } from "./repo";
 
@@ -210,5 +211,6 @@ export async function seed(db: Db, now = new Date()): Promise<void> {
     // Feature modules' demo data, in dependency order.
     await seedCalls(q, now);
     await seedCrm(q, now);
+    await seedMoney(q, now);
   });
 }

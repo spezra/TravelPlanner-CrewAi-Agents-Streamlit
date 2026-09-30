@@ -10,7 +10,7 @@ import { approveBatch, markInstructionSettled, prepareBatches } from "@/modules/
 import { addRecipient, setSettlementDetails, startOnboarding } from "@/modules/money/recipients";
 import * as repo from "@/modules/money/repo";
 import { reports } from "@/modules/money/reports";
-import { MONEY_DEMO, seedMoney } from "@/modules/money/seed";
+import { MONEY_DEMO } from "@/modules/money/seed";
 import { agreeSplit, importCollaborationFeeLines, saveSplitTerms } from "@/modules/money/splits";
 import { createCardSetupLink } from "@/modules/money/cards";
 import { ingestStripeWebhook } from "@/modules/money/webhook";
@@ -99,7 +99,7 @@ let handlers: ReturnType<typeof makeHandlers>;
 
 beforeEach(async () => {
   db = getDb();
-  await withSystem(db, (q) => seedMoney(q, NOW));
+  // Money demo data comes from the main seed (src/db/seed.ts runs seedMoney).
   stripe = new FakeStripe();
   mail = new MemoryMailer();
   deps = { stripe: new StripeClient("sk_test", { fetch: stripe.fetch }), mail, appUrl: "https://app.example.com", linkSecret: "sk_test" };
