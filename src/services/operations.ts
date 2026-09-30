@@ -148,12 +148,19 @@ export async function reconcileItem(db: Db, tenant: Tenant, itemId: string, adap
 }
 
 /** File commitments extracted from a call or debrief, routing uncertain/consequential ones to the expert. */
-export function fileCommitments(db: Db, tenant: Tenant, drafts: Omit<Commitment, "id" | "reviewStatus" | "state">[]): Promise<Commitment[]> {
+export function fileCommitments(
+  db: Db,
+  tenant: Tenant,
+  drafts: Omit<Commitment, "id" | "reviewStatus" | "state">[],
+  opts: { callTaskId?: string } = {},
+): Promise<Commitment[]> {
   return withTenant(db, tenant, async (q: Queryable) => {
     const filed: Commitment[] = [];
     for (const d of drafts) {
       const c: Commitment = { ...d, id: randomUUID(), state: "pending", reviewStatus: reviewRouting(d) };
       await repo.insertCommitment(q, tenant.workspaceId, c);
+      // Link to a private call in the same transaction, so the commitment is never briefly visible workspace-wide.
+      if (opts.callTaskId) await q.query("update commitments set call_task_id = $2 where id = $1", [c.id, opts.callTaskId]);
       filed.push(c);
     }
     await repo.audit(q, tenant.workspaceId, "agent:commitments", "commitments.filed", String(filed.length), {

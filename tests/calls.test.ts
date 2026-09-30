@@ -14,7 +14,7 @@ import { retryTranscription, saveNotes, uploadRecording, verifyTranscript, getTr
 import { addManualCommitment, changeCommitmentState, confirmChecked, listCommitmentsFiltered, markDelivered, prepareRecap, sendRecap } from "@/modules/calls/commitments";
 import { createHandlers, schedules } from "@/modules/calls/jobs";
 import { listCallTasks, listCommitmentViews } from "@/modules/calls/repo";
-import { CALLS_DEMO, seedCalls } from "@/modules/calls/seed";
+import { CALLS_DEMO } from "@/modules/calls/seed";
 import { getCallSettings, updateCallSettings } from "@/modules/calls/settings";
 import { addParty, closeCallTask, createCallTask, getCallTaskDetail, logConsent, reassignCallTask, setCaptureMode, withdrawConsent, type NewCallTask } from "@/modules/calls/tasks";
 import { NOW, useDb } from "./helpers/db";
@@ -35,7 +35,7 @@ beforeEach(async () => {
   db = getDb();
   store = new MemoryStore();
   mail = new MemoryMailer();
-  await withSystem(db, (q) => seedCalls(q, NOW));
+  // Demo call data comes from the main seed (src/db/seed.ts runs seedCalls).
 });
 
 function fakeLLM(output: unknown): StructuredLLM & { calls: number } {

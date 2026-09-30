@@ -155,7 +155,7 @@ export function createHandlers(overrides: Partial<CallDeps> = {}): Record<string
         promisorPersonId: firstName && task.personId && c.promisor.toLowerCase().includes(firstName) ? task.personId : null,
       }),
     );
-    const filed = drafts.length ? await fileCommitments(db, tenant, drafts) : [];
+    const filed = drafts.length ? await fileCommitments(db, tenant, drafts, { callTaskId: task.id }) : [];
 
     await withTenant(db, tenant, async (q) => {
       await q.query("update commitments set call_task_id = $2 where evidence_ref = $1 and call_task_id is null", [sourceRef, task.id]);

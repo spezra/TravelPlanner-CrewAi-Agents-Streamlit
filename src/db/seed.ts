@@ -6,6 +6,7 @@
  */
 import { requestApproval } from "@/domain/approvals";
 import type { TripItem } from "@/domain/bookings";
+import { seedCalls } from "@/modules/calls/seed";
 import type { Db } from "./client";
 import { insertApproval, insertCommitment, insertItem } from "./repo";
 
@@ -204,5 +205,8 @@ export async function seed(db: Db, now = new Date()): Promise<void> {
         ('00000000-0000-4000-8000-000000000602', $1, $2, 'commercial_terms', 'Hacienda Tierra Roja extends 15% off BAR for stays of 5+ nights through Rafael.', 'private', 'restricted', 'high', 'private', 'draft')`,
       [d.workspace, d.expert],
     );
+
+    // Feature modules' demo data, in dependency order.
+    await seedCalls(q, now);
   });
 }
