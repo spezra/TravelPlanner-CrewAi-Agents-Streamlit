@@ -5,7 +5,7 @@
 | Process | Command | Scale | Notes |
 |---|---|---|---|
 | web | `npm start` (image default) | 2+ behind a load balancer | Stateless. Health `/api/health`, readiness `/api/ready`. |
-| worker | `npm run worker` | 1+ | Claims jobs with `FOR UPDATE SKIP LOCKED`; safe to run many. SIGTERM finishes the current job. |
+| worker | `npm run worker` | 1+ | Claims jobs with `FOR UPDATE SKIP LOCKED`; safe to run many. SIGTERM finishes the current job. Disable the image's HTTP healthcheck for this command (it has no port); liveness is the process itself. |
 | migrate | `npm run db:migrate` | once per release | Run before starting new web/worker versions. Migrations are forward-only. |
 | cron (optional) | `POST /api/cron` with `Authorization: Bearer $CRON_SECRET` | every minute | Only needed where a long-running worker isn't possible. |
 

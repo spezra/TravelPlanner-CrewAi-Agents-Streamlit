@@ -19,6 +19,7 @@ services:
   migrate:
     build: .
     command: ["npm", "run", "db:migrate"]
+    healthcheck: { disable: true }
     environment: &env
       NODE_ENV: production
       APP_URL: ${APP_URL:-http://localhost:3000}
@@ -42,6 +43,7 @@ services:
   worker:
     build: .
     command: ["npm", "run", "worker"]
+    healthcheck: { disable: true }
     environment: { <<: *env, SERVICE_NAME: worker }
     volumes: [blobs:/app/.data/blobs]
     depends_on:

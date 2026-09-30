@@ -24,5 +24,6 @@ COPY --from=build --chown=app:app /app/public ./public
 RUN mkdir -p /app/.data/blobs && chown -R app:app /app/.data
 USER app
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Checks the web process on $PORT. The worker and migrate commands disable it (see docker-compose.yml).
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["npm", "start"]
