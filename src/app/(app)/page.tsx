@@ -14,6 +14,14 @@ const KIND_LABEL: Record<AttentionItem["kind"], [string, "alert" | "warn" | "ok"
   commitment_overdue: ["Overdue", "alert"],
   relationship_nudge: ["Relationship", ""],
   publication: ["Share knowledge", ""],
+  unhappy_client: ["Client", "alert"],
+  inbox: ["Inbox", "warn"],
+  payout: ["Payout", "warn"],
+  collaboration: ["Collaboration", ""],
+  introduction: ["Introduction", "warn"],
+  decision_question: ["Quick question", ""],
+  learning: ["Taste model", ""],
+  extraction: ["Call", "warn"],
 };
 
 function due(mins: number): string {
@@ -71,7 +79,12 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
                   <button className="btn primary">Confirm as checked</button>
                 </form>
               )}
-              {it.tripId && (
+              {it.href && (
+                <Link className="btn" href={it.href}>
+                  Open
+                </Link>
+              )}
+              {it.tripId && !it.href?.startsWith(`/trips/${it.tripId}`) && (
                 <Link className="btn" href={`/trips/${it.tripId}`}>
                   Open trip
                 </Link>

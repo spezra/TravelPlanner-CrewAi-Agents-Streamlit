@@ -104,6 +104,22 @@ export default async function Portal({ params, searchParams }: { params: Promise
         </div>
       )}
 
+      {v.document && (
+        <article className="proposal-doc">
+          <h2>{v.document.title}</h2>
+          {v.document.intro && <p className="doc-intro">{v.document.intro}</p>}
+          {v.document.sections.map((s, i) => (
+            <section key={i}>
+              <h3>{s.heading}</h3>
+              {s.body.split(/\n{2,}/).map((para, j) => (
+                <p key={j}>{para}</p>
+              ))}
+            </section>
+          ))}
+          {v.document.closing && <p className="doc-closing">{v.document.closing}</p>}
+        </article>
+      )}
+
       {v.proposals.length > 0 && (
         <>
           <h2>Waiting for your go-ahead</h2>

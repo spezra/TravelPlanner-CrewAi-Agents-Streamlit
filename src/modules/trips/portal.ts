@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { DomainError } from "@/domain/common";
 import { buildPortalView, type PortalView } from "@/domain/portal";
+import { latestSentProposal } from "@/modules/proposals/service";
 import type { Db } from "@/db/client";
 import * as coreRepo from "@/db/repo";
 import { withSystem, withTenant, type Tenant } from "@/db/tenant";
@@ -111,6 +112,7 @@ export async function loadPortal(db: Db, token: string, now: Date): Promise<{ ac
       items,
       approvals,
       acceptances,
+      document: await latestSentProposal(q, trip.id),
       now,
     });
   });

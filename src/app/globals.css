@@ -235,6 +235,13 @@ ul.plain li { padding: 5px 0; }
 
 /* ---------- Auth / portal ---------- */
 
+.proposal-doc { max-width: 680px; margin: var(--space-5) 0 var(--space-6); }
+.proposal-doc h2 { border: 0; }
+.proposal-doc h3 { font-size: 26px; font-weight: 300; margin-top: var(--space-5); }
+.proposal-doc p { font-family: var(--serif); font-size: 19px; line-height: 1.65; color: var(--ink-soft); margin: 0 0 var(--space-3); }
+.proposal-doc .doc-intro { font-size: 22px; color: var(--ink); }
+.proposal-doc .doc-closing { font-style: italic; margin-top: var(--space-5); }
+
 .auth-hero { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
 .auth-hero main { align-self: center; padding: var(--space-6) 0; }
 .auth-hero footer { padding: var(--space-4) 0; font-size: 11px; text-transform: uppercase; letter-spacing: var(--track-wide); color: var(--muted); border-top: 1px solid var(--line); }

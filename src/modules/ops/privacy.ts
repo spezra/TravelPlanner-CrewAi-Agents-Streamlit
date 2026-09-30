@@ -165,7 +165,14 @@ async function eraseSubject(q: Queryable, ws: string, type: SubjectType, id: str
       id,
       ERASED,
     ]);
-    return { client, party, statements, suggestions, sources, conversations };
+    // Other areas that hold this client's personal data.
+    const trips = "trip_id in (select id from trips where workspace_id = $1 and client_id = $2)";
+    const travelers = await n(`update trip_items set booking_request_enc = null where workspace_id = $1 and ${trips} and booking_request_enc is not null`, [ws, id]);
+    const acceptances = await n(`update approval_client_acceptances set accepted_name = $3 where workspace_id = $1 and ${trips}`, [ws, id, ERASED]);
+    const cards = await n("delete from money_payment_methods where workspace_id = $1 and client_id = $2", [ws, id]);
+    const cardSetups = await n("delete from money_card_setups where workspace_id = $1 and client_id = $2", [ws, id]);
+    const ties = await n("delete from person_clients where workspace_id = $1 and client_id = $2", [ws, id]);
+    return { client, party, statements, suggestions, sources, conversations, travelers, acceptances, cards, cardSetups, ties };
   }
   if (type === "party_member") {
     const party = await n("update client_party_members set name = $3, relation = '', notes_enc = null, erased_at = coalesce(erased_at, now()) where workspace_id = $1 and id = $2", [ws, id, ERASED]);
@@ -176,7 +183,15 @@ async function eraseSubject(q: Queryable, ws: string, type: SubjectType, id: str
   const person = await n("update people set name = $3, roles = '[]', approach = '{}', texture = '[]' where workspace_id = $1 and id = $2", [ws, id, ERASED]);
   const ledger = await n("update ledger_entries set note = '' where workspace_id = $1 and person_id = $2", [ws, id]);
   const commitments = await n("update commitments set promisor = $3 where workspace_id = $1 and promisor_person_id = $2", [ws, id, ERASED]);
-  return { person, ledger, commitments };
+  const imported = await n(
+    "delete from google_contacts where workspace_id = $1 and lower(email) in (select lower(e) from people, unnest(emails) e where workspace_id = $1 and id = $2)",
+    [ws, id],
+  );
+  const emails = await n("update people set emails = '{}' where workspace_id = $1 and id = $2 and cardinality(emails) > 0", [ws, id]);
+  const texture = await n("delete from person_texture where workspace_id = $1 and person_id = $2", [ws, id]);
+  const drafts = await n("delete from crm_note_drafts where workspace_id = $1 and person_id = $2", [ws, id]);
+  const ties = await n("delete from person_clients where workspace_id = $1 and person_id = $2", [ws, id]);
+  return { person, ledger, commitments, imported, emails, texture, drafts, ties };
 }
 
 /**

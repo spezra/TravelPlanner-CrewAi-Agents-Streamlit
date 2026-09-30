@@ -110,6 +110,13 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {trip.clientName ?? "No client"} · {trip.startsOn ?? "dates open"}
         {trip.endsOn ? ` → ${trip.endsOn}` : ""} · owner {trip.ownerName} · {trip.scope} · stage <b>{summary.stage}</b>
       </p>
+      <nav className="subnav" aria-label="Trip" style={{ margin: "0 0 var(--space-4)" }}>
+        <Link href={`/proposals/${trip.id}`}>Proposal</Link>
+        <Link href={`/trips/${trip.id}/plan`}>Response plan</Link>
+        <Link href={`/judgment/trips/${trip.id}`}>Decisions</Link>
+        <Link href={`/calls/new?trip=${trip.id}`}>New call</Link>
+        {trip.clientId && <Link href={`/clients/${trip.clientId}`}>Client brief</Link>}
+      </nav>
       <Notices error={error} ok={ok} />
 
       <div className="row">

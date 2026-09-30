@@ -194,3 +194,23 @@ export async function logAction(form: FormData): Promise<void> {
   const kind = z.enum(collab.LOG_KINDS).parse(text(form, "kind"));
   await run(id, (db, t) => collab.addLogEntry(db, t, id, kind, text(form, "text"), new Date()), "Added to the contribution log");
 }
+
+export async function recordSplitAction(form: FormData): Promise<void> {
+  const id = uuid.parse(form.get("collaborationId"));
+  const rules = z.enum(["unknown", "permitted", "not_permitted"]);
+  await run(
+    id,
+    async (db, tenant) => {
+      const { recordCollaborationSplit } = await import("@/modules/integration/collaborationMoney");
+      await recordCollaborationSplit(db, tenant, {
+        collaborationId: id,
+        itemId: uuid.parse(form.get("itemId")),
+        specialistRecipientId: uuid.parse(form.get("recipientId")),
+        hostRulesOurs: rules.parse(form.get("hostRulesOurs")),
+        hostRulesTheirs: rules.parse(form.get("hostRulesTheirs")),
+      });
+    },
+    "Split recorded in Money as a draft; agree it there before anything is paid",
+    EXPERTS,
+  );
+}

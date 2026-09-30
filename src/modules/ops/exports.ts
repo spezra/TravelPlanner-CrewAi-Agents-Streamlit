@@ -20,8 +20,13 @@ export const EXPORT_KIND = "ops.export_workspace";
 export const EXPORT_FORMAT = "atp-export/1";
 
 /** Platform tables and secrets that never go into an export. */
-const EXCLUDED_TABLES = new Set(["workspace_keys", "jobs", "rate_limits", "login_tokens", "sessions", "invitations", "workspace_exports", "schema_migrations"]);
-const EXCLUDED_COLUMNS = new Set(["token_hash", "wrapped_key"]);
+const EXCLUDED_TABLES = new Set(["workspace_keys", "jobs", "rate_limits", "login_tokens", "sessions", "invitations", "workspace_exports", "schema_migrations", "google_oauth_states"]);
+/** Credentials are never exported, even decrypted for their owner. */
+const EXCLUDED_COLUMNS = new Set(["token_hash", "wrapped_key", "access_token_sealed", "refresh_token_sealed", "verifier_sealed"]);
+
+/** Encrypted columns: the `_enc` convention, plus the `_sealed` / `sealed` names some features use. */
+const isEncrypted = (column: string) => column.endsWith("_enc") || column.endsWith("_sealed") || column === "sealed";
+const plainName = (column: string) => (column === "sealed" ? "content" : column.replace(/_(enc|sealed)$/, ""));
 
 /**
  * How to decrypt a column. The default convention is the context
@@ -34,11 +39,24 @@ export function registerExportDecryptor(table: string, column: string, context: 
   DECRYPTORS.set(`${table}.${column}`, context);
 }
 
+// Features whose encryption context differs from the default convention.
+registerExportDecryptor("trip_items", "booking_request_enc", (r) => `trip_item:${String(r.id)}:travelers`);
+registerExportDecryptor("trip_items", "internal_notes_enc", (r) => `trip_item:${String(r.id)}:notes`);
+registerExportDecryptor("call_transcripts", "body_enc", (r) => `call_transcript:${String(r.id)}`);
+registerExportDecryptor("call_notes", "body_enc", (r) => `call_note:${String(r.id)}`);
+registerExportDecryptor("call_recaps", "body_enc", (r) => `call_recap:${String(r.id)}`);
+registerExportDecryptor("call_extractions", "unclear_enc", (r) => `call_extraction:${String(r.source_ref)}`);
+registerExportDecryptor("money_recipients", "settlement_details_enc", (r) => `money-recipient:${String(r.id)}`);
+registerExportDecryptor("person_texture", "sealed", (r) => `person_texture:${String(r.person_id)}`);
+registerExportDecryptor("crm_note_drafts", "body_sealed", (r) => `crm_note_draft:${String(r.id)}`);
+registerExportDecryptor("inbound_messages", "subject_sealed", (r) => `inbound_subject:${String(r.id)}`);
+registerExportDecryptor("inbound_messages", "body_sealed", (r) => `inbound_body:${String(r.id)}`);
+
 function contextFor(table: string, column: string, row: Record<string, unknown>): string | null {
   const custom = DECRYPTORS.get(`${table}.${column}`);
   if (custom) return custom(row);
   if (row.id == null) return null;
-  return encCtx(table, column.replace(/_enc$/, ""), String(row.id));
+  return encCtx(table, plainName(column), String(row.id));
 }
 
 const jsonSafe = (_k: string, v: unknown) => (typeof v === "bigint" ? v.toString() : v);
@@ -48,11 +66,11 @@ async function decryptRow(q: Queryable, workspaceId: string, table: string, row:
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) {
     if (EXCLUDED_COLUMNS.has(k)) continue;
-    if (!k.endsWith("_enc")) {
+    if (!isEncrypted(k)) {
       out[k] = v instanceof Date ? v.toISOString() : v;
       continue;
     }
-    const name = k.replace(/_enc$/, "");
+    const name = plainName(k);
     if (v == null) {
       out[name] = null;
       continue;

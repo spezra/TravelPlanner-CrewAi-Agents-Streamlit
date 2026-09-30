@@ -9,7 +9,22 @@ import type { Commitment } from "./commitments";
 import { formatMoney, type Id } from "./common";
 import type { Nudge } from "./crm";
 
-export type AttentionKind = "approval" | "reconcile" | "disruption" | "commitment_review" | "commitment_overdue" | "relationship_nudge" | "publication";
+export type AttentionKind =
+  | "approval"
+  | "reconcile"
+  | "disruption"
+  | "commitment_review"
+  | "commitment_overdue"
+  | "relationship_nudge"
+  | "publication"
+  | "unhappy_client"
+  | "inbox"
+  | "payout"
+  | "collaboration"
+  | "introduction"
+  | "decision_question"
+  | "learning"
+  | "extraction";
 
 export interface AttentionItem {
   key: string;
@@ -20,6 +35,8 @@ export interface AttentionItem {
   recommendedAction: string;
   /** Lower = sooner. Minutes until it matters; 0 = now. */
   urgencyMinutes: number;
+  /** Where the decision is made, when it isn't on the Today page itself. */
+  href?: string;
 }
 
 export interface AttentionInput {
@@ -29,6 +46,10 @@ export interface AttentionInput {
   commitments: readonly Commitment[];
   nudges: readonly Nudge[];
   pendingPublicationIds: readonly Id[];
+  /** Already-shaped items from other areas (inbox, money, network, ...). */
+  extra?: readonly AttentionItem[];
+  /** Approvals the client has accepted on the portal: surfaced ahead of the rest. */
+  clientAcceptedApprovalIds?: ReadonlySet<Id>;
 }
 
 export function buildAttentionQueue(input: AttentionInput): AttentionItem[] {
@@ -39,14 +60,15 @@ export function buildAttentionQueue(input: AttentionInput): AttentionItem[] {
   for (const a of input.approvals) {
     if (a.status !== "pending") continue;
     const expired = new Date(a.terms.offerExpiresAt) <= now;
+    const clientAccepted = input.clientAcceptedApprovalIds?.has(a.id) ?? false;
     out.push({
       key: `approval:${a.id}`,
       kind: "approval",
       tripId: a.tripId,
       title: `${expired ? "Expired" : "Approve"}: ${a.actions.map((x) => x.kind).join(", ")} (${formatMoney(a.terms.price)})`,
-      context: `Cancellation: ${a.terms.cancellationPolicy}. ${a.terms.downstreamChanges.length ? `Also changes: ${a.terms.downstreamChanges.join("; ")}. ` : ""}Actor: ${a.terms.actor}.`,
+      context: `${clientAccepted ? "The client has accepted this on the portal. " : ""}Cancellation: ${a.terms.cancellationPolicy}. ${a.terms.downstreamChanges.length ? `Also changes: ${a.terms.downstreamChanges.join("; ")}. ` : ""}Actor: ${a.terms.actor}.`,
       recommendedAction: expired ? "Re-quote before approving; the offer lapsed" : "Approve or reject before the offer expires",
-      urgencyMinutes: expired ? 0 : minsUntil(a.terms.offerExpiresAt),
+      urgencyMinutes: expired || clientAccepted ? 0 : minsUntil(a.terms.offerExpiresAt),
     });
   }
 
@@ -119,8 +141,11 @@ export function buildAttentionQueue(input: AttentionInput): AttentionItem[] {
       context: "Redacted and source-checked. Nothing leaves your private store without your approval.",
       recommendedAction: "Approve, edit or keep private",
       urgencyMinutes: 14 * 24 * 60,
+      href: `/knowledge/${id}`,
     });
   }
+
+  out.push(...(input.extra ?? []));
 
   return out.sort((a, b) => a.urgencyMinutes - b.urgencyMinutes || a.key.localeCompare(b.key));
 }

@@ -3,6 +3,7 @@
  * owner-only and audited), the audit log, failed background work, and
  * retention.
  */
+import { EXAMPLE_CONSENT_TABLE } from "@/domain/calls";
 import type { Db } from "@/db/client";
 import { withSystem, withTenant, type Tenant } from "@/db/tenant";
 import { DomainError } from "@/domain/common";
@@ -29,7 +30,12 @@ export async function getSettings(db: Db, tenant: Tenant): Promise<WorkspaceSett
       name: String(r.name),
       dataRegion: r.data_region as "us" | "eu",
       bookPortability: r.book_portability as BookPortability,
-      retention: { ...DEFAULT_RETENTION, ...((r.retention as Partial<RetentionSettings>) ?? {}) },
+      retention: {
+        ...DEFAULT_RETENTION,
+        ...((r.retention as Partial<RetentionSettings>) ?? {}),
+        // Raw audio is purged by the calls module from call_settings; that row is the one source of truth.
+        ...(await audioRetentionDays(q)),
+      },
       deletionRequestedAt: iso(r.deletion_requested_at),
     };
   });
@@ -56,6 +62,12 @@ export async function updateSettings(
       input.bookPortability,
       JSON.stringify(retention),
     ]);
+    await q.query(
+      `insert into call_settings (workspace_id, consent_table, audio_retention_days, updated_by, updated_at)
+       values (app_workspace(), $1, $2, app_member(), now())
+       on conflict (workspace_id) do update set audio_retention_days = excluded.audio_retention_days, updated_by = excluded.updated_by, updated_at = now()`,
+      [JSON.stringify(EXAMPLE_CONSENT_TABLE), retention.rawAudioDays],
+    );
     if (input.bookPortability !== before.bookPortability) {
       await audit(q, tenant, "workspace.portability_changed", tenant.workspaceId, { from: before.bookPortability, to: input.bookPortability });
     }
@@ -65,6 +77,11 @@ export async function updateSettings(
       retention,
     });
   });
+}
+
+async function audioRetentionDays(q: import("@/db/client").Queryable): Promise<{ rawAudioDays?: number }> {
+  const { rows } = await q.query<{ d: number }>("select audio_retention_days as d from call_settings where workspace_id = app_workspace()");
+  return rows[0] ? { rawAudioDays: Number(rows[0].d) } : {};
 }
 
 async function getSettingsTx(q: import("@/db/client").Queryable) {

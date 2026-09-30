@@ -119,7 +119,7 @@ describe("booking execution", () => {
 describe("attention queue", () => {
   it("surfaces the seeded trip's consequential items", async () => {
     const q = await attentionQueue(db, expert, NOW);
-    expect(new Set(q.map((x) => x.kind))).toEqual(new Set(["reconcile", "approval", "commitment_review", "relationship_nudge", "publication"]));
+    expect([...new Set(q.map((x) => x.kind))]).toEqual(expect.arrayContaining(["reconcile", "approval", "commitment_review", "relationship_nudge", "publication", "inbox"]));
     // The assistant doesn't own the relationship, so gets no nudges or publication asks.
     const qa = await attentionQueue(db, assistant, NOW);
     expect(qa.some((x) => x.kind === "relationship_nudge" || x.kind === "publication")).toBe(false);

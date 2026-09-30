@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTrip, listItems } from "@/db/repo";
 import { withTenant } from "@/db/tenant";
+import { listRecipients } from "@/modules/money/repo";
 import { CONTRIBUTION_LABEL, currentVersion, mayDo, type CollaborationTerms, type Side } from "@/domain/collaborationTerms";
 import { formatMoney } from "@/domain/common";
 import { getDb, requireMember } from "@/lib/server";
@@ -9,6 +10,7 @@ import * as collab from "@/modules/network/collaborations";
 import { FEE_ROWS, minorDigits } from "@/modules/network/forms";
 import {
   acceptTermsAction,
+  recordSplitAction,
   activationDecideAction,
   activationRequestAction,
   completeAction,
@@ -107,10 +109,11 @@ export default async function CollaborationPage({ params, searchParams }: { para
         ).rows;
       }
     }
-    return { c, side, terms, shares, endorsements, activations, log, trip, items, statements };
+    const recipients = side === "requester" && c.agreedTermsVersion !== null ? (await listRecipients(q)).filter((r) => r.kind !== "workspace") : [];
+    return { c, side, terms, shares, endorsements, activations, log, trip, items, statements, recipients };
   });
   if (!data) notFound();
-  const { c, side, terms, shares, endorsements, activations, log, trip, items, statements } = data;
+  const { c, side, terms, shares, endorsements, activations, log, trip, items, statements, recipients } = data;
   const may = (a: Parameters<typeof mayDo>[0]) => side !== null && mayDo(a, side, c.state);
   const name = (memberId: string | null) =>
     memberId === c.requesterMemberId ? c.requesterName : memberId === c.specialistMemberId ? c.specialistName : memberId ? "A colleague" : "The platform";
@@ -379,6 +382,59 @@ export default async function CollaborationPage({ params, searchParams }: { para
             </div>
           </form>
         </details>
+      )}
+
+      {side === "requester" && agreed && (
+        <>
+          <h2>Money</h2>
+          {(() => {
+            const billable = items.filter((i) => agreed.terms.fees.some((f) => f.bookingItemIds.includes(i.id)));
+            if (billable.length === 0) return <p className="empty">The agreed terms have no fees tied to a booking on this trip.</p>;
+            if (recipients.length === 0)
+              return (
+                <p className="small muted">
+                  Add the specialist as a payee in <Link href="/money/recipients">Money → Payees</Link> to record how commission on these bookings is split.
+                </p>
+              );
+            return (
+              <form action={recordSplitAction} className="card">
+                <input type="hidden" name="collaborationId" value={c.id} />
+                <p className="small muted">Records the agreed fee lines as this booking&apos;s split terms (a draft you agree in Money before anything is paid).</p>
+                <label htmlFor="itemId">Booking</label>
+                <select id="itemId" name="itemId" className="field">
+                  {billable.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.title}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="recipientId">Pay the specialist as</label>
+                <select id="recipientId" name="recipientId" className="field">
+                  {recipients.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="hostRulesOurs">Our host agreement allows sharing commission</label>
+                <select id="hostRulesOurs" name="hostRulesOurs" className="field" defaultValue="unknown">
+                  <option value="unknown">Not checked yet</option>
+                  <option value="permitted">Yes</option>
+                  <option value="not_permitted">No</option>
+                </select>
+                <label htmlFor="hostRulesTheirs">Their host agreement allows receiving it</label>
+                <select id="hostRulesTheirs" name="hostRulesTheirs" className="field" defaultValue="unknown">
+                  <option value="unknown">Not checked yet</option>
+                  <option value="permitted">Yes</option>
+                  <option value="not_permitted">No</option>
+                </select>
+                <div className="actions">
+                  <button className="btn">Record split</button>
+                </div>
+              </form>
+            );
+          })()}
+        </>
       )}
 
       <h2>Client details</h2>

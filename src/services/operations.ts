@@ -7,7 +7,8 @@ import { evaluateAction, type GateFailure } from "@/domain/actionGate";
 import { decideApproval, type ActionSpec, type MaterialTerms } from "@/domain/approvals";
 import { buildAttentionQueue, type AttentionItem } from "@/domain/attention";
 import { missingCredentialFields, transitionItem, type TripItem } from "@/domain/bookings";
-import { DomainError } from "@/domain/common";
+import { DomainError, type Role } from "@/domain/common";
+import { clientAcceptedApprovalIds, collectSignals } from "@/modules/attention/sources";
 import { reviewRouting, type Commitment } from "@/domain/commitments";
 import { nudges as personNudges } from "@/domain/crm";
 import { execute, idempotencyKey, reconcile, type ExecutionAttempt, type ProviderAdapter } from "@/domain/execution";
@@ -28,7 +29,10 @@ export function attentionQueue(db: Db, tenant: Tenant, now: Date): Promise<Atten
     ]);
     const mine = people.filter((p) => p.ownerId === tenant.memberId);
     const nudges = mine.flatMap((p) => personNudges(p, ledger.filter((e) => e.personId === p.id), now));
-    return buildAttentionQueue({ now, approvals, items, commitments, nudges, pendingPublicationIds });
+    const role = (await q.query<{ role: Role }>("select role from members where id = $1", [tenant.memberId])).rows[0]?.role ?? "assistant";
+    const extra = await collectSignals(q, tenant, role);
+    const accepted = await clientAcceptedApprovalIds(q);
+    return buildAttentionQueue({ now, approvals, items, commitments, nudges, pendingPublicationIds, extra, clientAcceptedApprovalIds: accepted });
   });
 }
 

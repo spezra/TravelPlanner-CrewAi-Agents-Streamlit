@@ -34,6 +34,26 @@ export interface PortalProposal {
   clientAcceptance: { acceptedName: string; acceptedAt: string; termsCurrent: boolean } | null;
 }
 
+/** The editorial proposal the advisor sent. Text only: no evidence, sources or alternatives considered. */
+export interface PortalDocument {
+  version: number;
+  title: string;
+  intro: string;
+  sections: { heading: string; body: string }[];
+  closing: string;
+}
+
+export function portalDocument(p: { version: number; title: string; intro: string; sections: readonly { heading: string; body: string }[]; closing: string } | null): PortalDocument | null {
+  if (!p) return null;
+  return {
+    version: p.version,
+    title: p.title,
+    intro: p.intro,
+    sections: p.sections.filter((s) => s.heading.trim() || s.body.trim()).map((s) => ({ heading: s.heading, body: s.body })),
+    closing: p.closing,
+  };
+}
+
 export interface PortalView {
   tripTitle: string;
   startsOn: string | null;
@@ -42,6 +62,7 @@ export interface PortalView {
   advisor: { name: string; email: string };
   items: PortalItem[];
   proposals: PortalProposal[];
+  document: PortalDocument | null;
 }
 
 export interface ClientAcceptance {
@@ -137,6 +158,7 @@ export function buildPortalView(input: {
   items: readonly TripItem[];
   approvals: readonly Approval[];
   acceptances: readonly ClientAcceptance[];
+  document?: Parameters<typeof portalDocument>[0];
   now: Date;
 }): PortalView {
   return {
@@ -147,5 +169,6 @@ export function buildPortalView(input: {
     advisor: { name: input.advisor.name, email: input.advisor.email },
     items: portalItems(input.items),
     proposals: portalProposals(input.approvals, input.items, input.acceptances, input.now),
+    document: portalDocument(input.document ?? null),
   };
 }

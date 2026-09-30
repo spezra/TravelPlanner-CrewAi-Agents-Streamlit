@@ -8,6 +8,7 @@ import { audit, getTrip, listItems } from "@/db/repo";
 import { withTenant, type Tenant } from "@/db/tenant";
 import { DomainError } from "@/domain/common";
 import { canSend, reviewProposal, type Proposal, type ProposalIssue, type ProposalSection } from "@/domain/proposals";
+import { recordDraftOutcome } from "@/modules/ops/judgment";
 import { enqueueAsTenant } from "@/server/jobs/queue";
 
 function mapProposal(r: Record<string, unknown>): Proposal & { sentAt: string | null } {
@@ -100,6 +101,12 @@ export function sendProposal(db: Db, tenant: Tenant, proposalId: string, now = n
     await q.query("update proposals set status = 'superseded' where trip_id = $1 and status in ('sent', 'accepted') and id <> $2", [p.tripId, p.id]);
     await q.query("update proposals set status = 'sent', sent_at = $2 where id = $1", [p.id, now.toISOString()]);
     await audit(q, tenant.workspaceId, tenant.memberId, "proposal.sent", p.id, { version: p.version });
+    return p;
+  }).then(async (p) => {
+    // An agent draft that reached the client is the endorsement signal the taste model measures.
+    if (p.createdBy === "agent:proposals") {
+      await recordDraftOutcome(db, tenant, { draftRef: `proposal:${p.id}`, tripId: p.tripId, outcome: p.editedByExpert ? "endorsed_with_edits" : "endorsed_unchanged", note: null }, now);
+    }
   });
 }
 
