@@ -1,0 +1,23 @@
+.sheet {
+  max-width: 720px;
+}
+
+.text {
+  white-space: pre-wrap;
+  font: 15px/1.6 var(--sans);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+@media print {
+  :global(.top),
+  .noPrint {
+    display: none;
+  }
+  .text {
+    border: 0;
+    padding: 0;
+  }
+}
