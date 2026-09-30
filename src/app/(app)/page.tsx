@@ -30,9 +30,10 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <main>
+      <div className="eyebrow">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: me.member.timeZone })}</div>
       <h1>Today</h1>
       <p className="lede">
-        Only the decisions that need you, each with context and a recommended action. Everything else is running.
+        {queue.length === 0 ? "Nothing needs you. Everything else is in hand." : `${queue.length} ${queue.length === 1 ? "decision needs" : "decisions need"} you. Everything else is in hand.`}
       </p>
       {error && <div className="card chip alert">{error}</div>}
       {queue.length === 0 && <p className="empty">Nothing needs you right now.</p>}

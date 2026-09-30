@@ -28,7 +28,7 @@ export interface SessionInfo {
   userId: string;
   email: string;
   name: string;
-  member: { id: string; workspaceId: string; workspaceName: string; role: Role; name: string } | null;
+  member: { id: string; workspaceId: string; workspaceName: string; role: Role; name: string; timeZone: string } | null;
   memberships: { memberId: string; workspaceId: string; workspaceName: string; role: Role }[];
 }
 
@@ -137,7 +137,7 @@ export async function getSession(db: Db, sessionToken: string, now = new Date())
     if (!s) return null;
     const memberships = (
       await q.query<Record<string, unknown>>(
-        `select m.id, m.workspace_id, w.name as workspace_name, m.role, m.name
+        `select m.id, m.workspace_id, w.name as workspace_name, m.role, m.name, m.time_zone
            from members m join workspaces w on w.id = m.workspace_id
           where m.user_id = $1 and m.disabled_at is null order by w.name`,
         [s.user_id],
@@ -154,7 +154,7 @@ export async function getSession(db: Db, sessionToken: string, now = new Date())
       email: String(s.email),
       name: String(s.user_name),
       member: active
-        ? { id: String(active.id), workspaceId: String(active.workspace_id), workspaceName: String(active.workspace_name), role: active.role as Role, name: String(active.name) }
+        ? { id: String(active.id), workspaceId: String(active.workspace_id), workspaceName: String(active.workspace_name), role: active.role as Role, name: String(active.name), timeZone: String(active.time_zone ?? "UTC") }
         : null,
       memberships: memberships.map((m) => ({ memberId: String(m.id), workspaceId: String(m.workspace_id), workspaceName: String(m.workspace_name), role: m.role as Role })),
     };

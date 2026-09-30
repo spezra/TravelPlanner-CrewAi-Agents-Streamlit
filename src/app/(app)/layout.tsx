@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireMember } from "@/server/auth/session";
 import { signOut, switchWorkspace } from "../(auth)/actions";
+import { BRAND_NAME } from "@/lib/brand";
 import { NAV } from "./nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -9,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="shell">
       <header className="top">
         <Link className="brand" href="/">
-          Travel Platform
+          {BRAND_NAME}
         </Link>
         <nav className="nav">
           {NAV.filter((n) => !n.roles || n.roles.includes(member.role)).map((n) => (
