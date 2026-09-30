@@ -143,6 +143,8 @@ export interface RecipientRow {
   detailsSubmitted: boolean;
   hasSettlementDetails: boolean;
   lastPayoutFailure: string | null;
+  /** When where this payee is paid last changed (bank details or Stripe account). */
+  destinationChangedAt: string | null;
 }
 
 function mapRecipient(r: Record<string, unknown>): RecipientRow {
@@ -158,6 +160,7 @@ function mapRecipient(r: Record<string, unknown>): RecipientRow {
     detailsSubmitted: Boolean(r.details_submitted),
     hasSettlementDetails: r.settlement_details_enc != null,
     lastPayoutFailure: str(r.last_payout_failure),
+    destinationChangedAt: r.destination_changed_at ? new Date(String(r.destination_changed_at)).toISOString() : null,
   };
 }
 

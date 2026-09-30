@@ -2,6 +2,7 @@
  * Shared helpers for the CRM server actions: form parsing and turning expected
  * failures (domain rules, validation) into a message for the redirect back.
  */
+import { safeLocalPath } from "@/lib/safePath";
 import { ZodError } from "zod";
 import { DomainError } from "@/domain/common";
 
@@ -20,7 +21,7 @@ export const lines = (text: string, separators = /\r?\n/): string[] =>
     .filter(Boolean);
 
 /** Only same-site relative paths, so a crafted form can't bounce the user elsewhere. */
-export const safeBack = (v: string, fallback: string): string => (v.startsWith("/") && !v.startsWith("//") ? v : fallback);
+export const safeBack = (v: string, fallback: string): string => safeLocalPath(v, fallback);
 
 export function withParam(path: string, key: string, value: string): string {
   const [base, hash] = path.split("#");

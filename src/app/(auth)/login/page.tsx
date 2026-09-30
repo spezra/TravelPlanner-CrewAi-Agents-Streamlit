@@ -1,3 +1,4 @@
+import { safeLocalPath } from "@/lib/safePath";
 import { redirect } from "next/navigation";
 import { config } from "@/server/config";
 import { currentSession } from "@/server/auth/session";
@@ -15,7 +16,7 @@ const DEMO_ACCOUNTS = [
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ sent?: string; error?: string; next?: string }> }) {
   const { sent, error, next } = await searchParams;
-  if (await currentSession()) redirect(next ?? "/");
+  if (await currentSession()) redirect(safeLocalPath(next));
   const dev = config().ALLOW_DEV_LOGIN === "1" && config().NODE_ENV !== "production";
   return (
     <main>

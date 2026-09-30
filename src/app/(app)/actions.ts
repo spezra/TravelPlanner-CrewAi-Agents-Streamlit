@@ -1,17 +1,17 @@
 "use server";
 
+import { safeLocalPath } from "@/lib/safePath";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { markCommitmentReviewed } from "@/db/repo";
-import { withTenant } from "@/db/tenant";
 import { DomainError } from "@/domain/common";
 import { getDb, requireMember } from "@/lib/server";
+import { confirmChecked } from "@/modules/calls/commitments";
 import { decide } from "@/services/operations";
 
 export async function decideApproval(form: FormData): Promise<void> {
   const approvalId = String(form.get("approvalId"));
   const decision = form.get("decision") === "approved" ? "approved" : "rejected";
-  const back = String(form.get("back") ?? "/");
+  const back = safeLocalPath(form.get("back"));
   const { tenant } = await requireMember();
   let error: string | null = null;
   try {
@@ -26,9 +26,15 @@ export async function decideApproval(form: FormData): Promise<void> {
 
 export async function confirmCommitment(form: FormData): Promise<void> {
   const id = String(form.get("commitmentId"));
-  const back = String(form.get("back") ?? "/");
+  const back = safeLocalPath(form.get("back"));
   const { tenant } = await requireMember();
-  await withTenant(await getDb(), tenant, (q) => markCommitmentReviewed(q, id, true));
+  let error: string | null = null;
+  try {
+    await confirmChecked(await getDb(), tenant, id);
+  } catch (err) {
+    if (!(err instanceof DomainError)) throw err;
+    error = err.message;
+  }
   revalidatePath("/", "layout");
-  redirect(back);
+  redirect(error ? `${back}?error=${encodeURIComponent(error)}` : back);
 }

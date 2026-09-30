@@ -204,10 +204,6 @@ export async function insertCommitment(q: Queryable, workspaceId: string, c: Com
   );
 }
 
-export async function markCommitmentReviewed(q: Queryable, id: string, verified: boolean): Promise<void> {
-  await q.query("update commitments set review_status = 'reviewed', transcript_verified = transcript_verified or $2 where id = $1", [id, verified]);
-}
-
 export async function listPeople(q: Queryable): Promise<Person[]> {
   const { rows } = await q.query<Record<string, unknown>>("select * from people order by name");
   return rows.map((r) => ({

@@ -1,5 +1,6 @@
 "use server";
 
+import { safeLocalPath } from "@/lib/safePath";
 import { redirect } from "next/navigation";
 import { DomainError } from "@/domain/common";
 import { config } from "@/server/config";
@@ -21,7 +22,7 @@ const back = (path: string, error: unknown): never => {
   redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(error.message)}`);
 };
 
-const localPath = (p: unknown) => (typeof p === "string" && p.startsWith("/") && !p.startsWith("//") ? p : "/");
+const localPath = (p: unknown) => safeLocalPath(p);
 
 export async function requestLink(form: FormData): Promise<void> {
   const email = String(form.get("email") ?? "");

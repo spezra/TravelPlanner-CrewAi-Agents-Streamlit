@@ -114,3 +114,39 @@ describe("cross-workspace collaborations", () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+describe("application-level authority", () => {
+  it("only an owner decides where a payee is paid", async () => {
+    const { setSettlementDetails } = await import("@/modules/money/recipients");
+    const { MONEY_DEMO } = await import("@/modules/money/seed");
+    const advisor = { workspaceId: DEMO.workspace, memberId: DEMO.backup };
+    await expect(setSettlementDetails(db, advisor, MONEY_DEMO.backupRecipient, "IBAN attacker")).rejects.toThrow(/can.t change where a payee/);
+    await setSettlementDetails(db, expert, MONEY_DEMO.backupRecipient, "IBAN FR76 …");
+    const r = await withSystem(db, (q) => q.query<{ changed: string | null }>("select destination_changed_at as changed from money_recipients where id = $1", [MONEY_DEMO.backupRecipient]));
+    expect(r.rows[0]!.changed).not.toBeNull();
+  });
+
+  it("assistants can't sign off consequential commitments, and sign-off is audited", async () => {
+    const { confirmChecked } = await import("@/modules/calls/commitments");
+    const consequential = "00000000-0000-4000-8000-000000000301";
+    await expect(confirmChecked(db, assistant, consequential)).rejects.toThrow(/expert/);
+    await confirmChecked(db, expert, consequential);
+    const audit = await withSystem(db, (q) => q.query("select 1 from audit_events where action = 'commitment.reviewed' and subject = $1", [consequential]));
+    expect(audit.rows).toHaveLength(1);
+  });
+
+  it("redirect targets are same-origin paths only", async () => {
+    const { safeLocalPath } = await import("@/lib/safePath");
+    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "\\\\evil", "/%0d%0aSet-Cookie:x", "javascript:alert(1)", "", null])
+      expect(safeLocalPath(bad)).toBe(bad === "/%0d%0aSet-Cookie:x" ? "/%0d%0aSet-Cookie:x" : "/");
+    expect(safeLocalPath("/trips/1?x=2#y")).toBe("/trips/1?x=2#y");
+  });
+
+  it("only the nearest trusted proxy's view of the client address counts", async () => {
+    const { clientIp } = await import("@/lib/clientIp");
+    const h = (v: Record<string, string>) => ({ get: (k: string) => v[k] ?? null });
+    expect(clientIp(h({ "x-forwarded-for": "6.6.6.6, 203.0.113.9" }), 1)).toBe("203.0.113.9");
+    expect(clientIp(h({ "x-forwarded-for": "6.6.6.6, 203.0.113.9, 10.0.0.2" }), 2)).toBe("203.0.113.9");
+    expect(clientIp(h({ "x-real-ip": "198.51.100.1" }), 1)).toBe("198.51.100.1");
+  });
+});

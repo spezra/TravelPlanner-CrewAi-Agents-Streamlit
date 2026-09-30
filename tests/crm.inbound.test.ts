@@ -144,7 +144,9 @@ describe("parsing and suggestions", () => {
     const msg = await withTenant(db, expert, (q) => getInbound(q, expert, id));
     expect(msg).toMatchObject({ parseStatus: "parsed", classification: "supplier_confirmation", subject: "Transfer confirmed VT-555" });
 
-    const sugg = await withTenant(db, assistant, (q) => listSuggestions(q, { messageId: id }));
+    // Suggestions are built from the owner's own view, so they are the owner's alone.
+    expect(await withTenant(db, assistant, (q) => listSuggestions(q, { messageId: id }))).toEqual([]);
+    const sugg = await withTenant(db, expert, (q) => listSuggestions(q, { messageId: id }));
     expect(sugg.map((s) => s.kind).sort()).toEqual(["attach_confirmation", "file_commitment", "log_touch", "upsert_person"]);
     const attach = sugg.find((s) => s.kind === "attach_confirmation")!;
     expect((attach.payload.confirmation as { priceMinor: number; currency: string })).toMatchObject({ priceMinor: 18_000, currency: "USD" });
@@ -159,8 +161,9 @@ describe("parsing and suggestions", () => {
     expect(await withTenant(db, expert, (q) => listSuggestions(q, { messageId: id }))).toHaveLength(4);
     expect(llm.calls).toBe(1);
 
-    // An assistant accepts the confirmation: outcome_unknown -> confirmed via the state machine, and the attempt resolves.
-    const r = await acceptSuggestion(db, assistant, attach.id, { itemId: DEMO.transfer }, NOW);
+    // The trip owner accepts the confirmation: outcome_unknown -> confirmed via the state machine, and the attempt resolves.
+    await expect(acceptSuggestion(db, assistant, attach.id, { itemId: DEMO.transfer }, NOW)).rejects.toThrow(/not found/i);
+    const r = await acceptSuggestion(db, expert, attach.id, { itemId: DEMO.transfer }, NOW);
     expect(r).toMatchObject({ from: "outcome_unknown", to: "confirmed" });
     const item = (await withTenant(db, expert, (q) => getItem(q, DEMO.transfer)))!;
     expect(item).toMatchObject({ state: "confirmed", confirmationRef: "VT-555" });

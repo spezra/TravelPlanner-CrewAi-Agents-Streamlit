@@ -12,8 +12,9 @@ export default async function Payouts({ searchParams }: { searchParams: Promise<
   const { error, ok } = await searchParams;
   const { member, tenant } = await requireMember();
   const isOwner = member.role === "owner";
-  const { batches, lines, instructions, adjustments } = await withTenant(await getDb(), tenant, async (q) => ({
+  const { batches, lines, instructions, adjustments, recipients } = await withTenant(await getDb(), tenant, async (q) => ({
     batches: await repo.listBatches(q),
+    recipients: await repo.listRecipients(q),
     lines: await repo.listLines(q),
     instructions: await repo.listInstructions(q),
     adjustments: (
@@ -102,6 +103,18 @@ export default async function Payouts({ searchParams }: { searchParams: Promise<
                 </tbody>
               </table>
             </div>
+            {b.status === "draft" &&
+              (() => {
+                // Where money goes: flag any payee whose destination changed recently, before the owner approves.
+                const recent = recipients.filter(
+                  (r) => r.destinationChangedAt && Date.now() - new Date(r.destinationChangedAt).getTime() < 14 * 86_400_000 && lines.some((l) => l.batchId === b.id && l.recipientId === r.id),
+                );
+                return recent.length > 0 ? (
+                  <p className="notice error small">
+                    Payment destination changed in the last 14 days for {recent.map((r) => `${r.name} (${fmtDate(r.destinationChangedAt!)})`).join(", ")}. Confirm with the payee directly before approving.
+                  </p>
+                ) : null;
+              })()}
             {b.status === "draft" && (
               <div className="actions">
                 {isOwner && (

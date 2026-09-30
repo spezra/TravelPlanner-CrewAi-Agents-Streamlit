@@ -1,6 +1,7 @@
 /**
  * Next.js adapter for sessions: cookie handling and route guards.
  */
+import { clientIp } from "@/lib/clientIp";
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -60,6 +61,5 @@ export async function requireSession(): Promise<SessionInfo> {
 
 export async function clientMeta(): Promise<{ ip: string | null; userAgent: string | null }> {
   const h = await headers();
-  const fwd = h.get("x-forwarded-for");
-  return { ip: fwd ? fwd.split(",")[0]!.trim() : h.get("x-real-ip"), userAgent: h.get("user-agent") };
+  return { ip: clientIp(h), userAgent: h.get("user-agent") };
 }

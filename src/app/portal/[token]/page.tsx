@@ -1,3 +1,4 @@
+import { clientIp } from "@/lib/clientIp";
 import { headers } from "next/headers";
 import type { PortalItem } from "@/domain/portal";
 import { formatAmount } from "@/domain/tripPlanning";
@@ -58,7 +59,7 @@ export default async function Portal({ params, searchParams }: { params: Promise
   const db = await getDb();
   const now = new Date();
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip");
+  const ip = clientIp(h);
   const allowed = await portalRateLimit(db, ip, now);
   const portal = allowed ? await loadPortal(db, token, now) : null;
 

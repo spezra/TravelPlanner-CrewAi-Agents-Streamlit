@@ -134,3 +134,6 @@ create policy append on collaboration_log for insert to app_user
   with check (workspace_id = app_workspace() and actor_member_id = app_member()
               and exists (select 1 from collaborations c where c.id = collaboration_id
                           and collab_side(c.workspace_id, c.requester_member_id, c.specialist_workspace_id, c.specialist_member_id) = actor_side));
+
+-- 7. Payout destinations: record when a payee's destination last changed, so the owner approving a batch sees it.
+alter table money_recipients add column destination_changed_at timestamptz;

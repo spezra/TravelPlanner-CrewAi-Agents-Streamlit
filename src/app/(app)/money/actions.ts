@@ -230,7 +230,7 @@ export async function addRecipientAction(form: FormData): Promise<void> {
 }
 
 export async function settlementDetailsAction(form: FormData): Promise<void> {
-  const { tenant } = await requireMember(["owner", "advisor", "admin"]);
+  const { tenant } = await requireMember(["owner"]);
   await run("/money/recipients", "Payment details saved (encrypted)", async () => {
     const f = z.object({ recipientId: uuid, details: text(1000) }).parse(Object.fromEntries(form));
     await setSettlementDetails(await getDb(), tenant, f.recipientId, f.details);
@@ -238,10 +238,9 @@ export async function settlementDetailsAction(form: FormData): Promise<void> {
 }
 
 export async function onboardAction(form: FormData): Promise<void> {
-  const { tenant } = await requireMember(["owner", "advisor", "admin"]);
-  await run("/money/recipients", "Onboarding link sent", async () => {
-    const url = await startOnboarding(await getDb(), tenant, uuid.parse(form.get("recipientId")), moneyDeps(), new Date());
-    return `Onboarding link created and emailed: ${url}`;
+  const { tenant } = await requireMember(["owner"]);
+  await run("/money/recipients", "Onboarding link emailed to the payee", async () => {
+    await startOnboarding(await getDb(), tenant, uuid.parse(form.get("recipientId")), moneyDeps(), new Date());
   });
 }
 

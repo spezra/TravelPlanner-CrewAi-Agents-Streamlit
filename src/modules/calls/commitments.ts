@@ -97,6 +97,11 @@ export async function changeCommitmentState(db: Db, tenant: Tenant, input: { id:
 /** "Confirm checked": a person reviewed it, including any machine-transcribed names, amounts and dates. */
 export async function confirmChecked(db: Db, tenant: Tenant, id: string): Promise<void> {
   await withTenant(db, tenant, async (q) => {
+    const c = (await q.query<{ consequential: boolean }>("select consequential from commitments where id = $1", [id])).rows[0];
+    if (!c) throw new DomainError("not_found", "Commitment not found");
+    const role = (await q.query<{ role: string }>("select role from members where id = app_member()")).rows[0]?.role;
+    // Consequential promises go to the expert: assistants prepare, they don't sign off.
+    if (c.consequential && role === "assistant") throw new DomainError("forbidden", "A consequential commitment is checked by the expert, not an assistant");
     const { rows } = await q.query(
       "update commitments set review_status = 'reviewed', transcript_verified = transcript_verified or evidence = 'machine_transcript' where id = $1 returning id",
       [id],

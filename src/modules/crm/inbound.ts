@@ -376,7 +376,8 @@ export async function parseInboundJob(db: Db, tenant: Tenant, messageId: string,
       people: people.rows.map((p) => ({ id: p.id, name: p.name, emails: p.emails ?? [] })),
       items: await candidateItems(q),
     });
-    const created = await insertSuggestions(q, tenant, { ownerId: msg.ownerId, scope: "workspace", source: "inbound_email", messageId: msg.id }, drafts);
+    // Built from the owner's own view (their private trips and contacts included), so only the owner sees them.
+    const created = await insertSuggestions(q, tenant, { ownerId: msg.ownerId, scope: "private", source: "inbound_email", messageId: msg.id }, drafts);
     const status = parsed ? "parsed" : llm ? "failed" : "manual";
     await q.query("update inbound_messages set parse_status = $2, classification = $3, parse_error = $4, parsed_at = $5 where id = $1", [
       msg.id,
@@ -469,6 +470,18 @@ export async function acceptSuggestionTx(q: Queryable, tenant: Tenant, id: strin
       if (!itemId) throw new DomainError("choose_item", "Choose the booking this confirmation belongs to");
       const item = await getItem(q, itemId);
       if (!item) throw new DomainError("not_found", "Booking not found");
+      // Inbound email is unauthenticated: settling a booking on its word is the trip owner's (or a workspace owner's) call.
+      const authority = await q.query<{ ok: boolean }>(
+        "select (t.owner_id = app_member() or exists (select 1 from members m where m.id = app_member() and m.role = 'owner')) as ok from trips t where t.id = $1",
+        [item.tripId],
+      );
+      if (!authority.rows[0]?.ok) throw new DomainError("forbidden", "Only the trip owner or a workspace owner can confirm a booking from an email");
+      if (s.messageId) {
+        const sender = (await q.query<{ from_address: string }>("select from_address from inbound_messages where id = $1", [s.messageId])).rows[0]?.from_address;
+        if (sender && !(await personByEmail(q, sender)) && !choice.itemId) {
+          throw new DomainError("unknown_sender", `${sender} isn't a known supplier contact. Check the confirmation, then pick the booking explicitly to accept.`);
+        }
+      }
       const conf = p.confirmation as { confirmationNumber: string };
       const next = attachConfirmation(item, conf.confirmationNumber);
       await updateItemState(q, next);

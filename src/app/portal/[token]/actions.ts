@@ -1,5 +1,6 @@
 "use server";
 
+import { clientIp } from "@/lib/clientIp";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -28,7 +29,7 @@ export async function acceptProposalAction(form: FormData): Promise<void> {
   if (!parsed.success) redirect(`${back}?error=bad_input`);
   const db = await getDb();
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip");
+  const ip = clientIp(h);
   if (!(await portalRateLimit(db, ip, new Date()))) redirect(`${back}?error=rate_limited`);
   let error: string | null = null;
   try {

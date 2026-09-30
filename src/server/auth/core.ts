@@ -7,6 +7,7 @@
  * Sign-in links are single-use, short-lived and consumed by an explicit POST
  * (email scanners prefetch GET links).
  */
+import { safeLocalPath } from "@/lib/safePath";
 import { randomUUID } from "node:crypto";
 import type { Db, Queryable } from "@/db/client";
 import { withSystem } from "@/db/tenant";
@@ -52,7 +53,7 @@ export async function requestLoginLink(db: Db, mail: Mailer, input: { email: str
     return true;
   });
   if (!allowed) throw new DomainError("rate_limited", "Too many sign-in requests. Try again in a few minutes.");
-  const next = input.next && input.next.startsWith("/") && !input.next.startsWith("//") ? input.next : "/";
+  const next = safeLocalPath(input.next);
   const link = `${config().APP_URL}/auth/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
   await mail.send({
     to: email,

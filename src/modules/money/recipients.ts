@@ -39,9 +39,10 @@ export function addRecipient(db: Db, tenant: Tenant, input: { kind: "member" | "
 
 export function setSettlementDetails(db: Db, tenant: Tenant, recipientId: string, details: string) {
   return withTenant(db, tenant, async (q) => {
-    await requireRole(q, WRITERS, "change payee details");
+    // Where money goes is an owner's decision: nobody else can redirect a payee's payouts.
+    await requireRole(q, ["owner"], "change where a payee is paid");
     const sealed = details.trim() ? await encryptFor(q, tenant.workspaceId, detailsContext(recipientId), details.trim()) : null;
-    const { rows } = await q.query("update money_recipients set settlement_details_enc = $2 where id = $1 returning id", [recipientId, sealed]);
+    const { rows } = await q.query("update money_recipients set settlement_details_enc = $2, destination_changed_at = now() where id = $1 returning id", [recipientId, sealed]);
     if (!rows.length) throw new DomainError("not_found", "Payee not found");
     // Never log or audit the details themselves.
     await repo.audit(q, tenant.workspaceId, tenant.memberId, "money.recipient_details_changed", recipientId);
@@ -81,10 +82,12 @@ function linkUrls(deps: MoneyDeps, recipientId: string) {
 export async function startOnboarding(db: Db, tenant: Tenant, recipientId: string, deps: MoneyDeps, now: Date, opts: { email: boolean } = { email: true }) {
   const stripe = requireStripe(deps);
   const recipient = await withTenant(db, tenant, async (q) => {
-    await requireRole(q, WRITERS, "onboard payees");
+    await requireRole(q, ["owner"], "onboard payees");
     const r = await repo.getRecipient(q, recipientId);
     if (!r) throw new DomainError("not_found", "Payee not found");
     if (r.kind === "workspace") throw new DomainError("bad_input", "The workspace's own share is retained, not paid out");
+    // The link is only ever emailed to the payee, so whoever completes it is the payee.
+    if (!r.email) throw new DomainError("no_email", "Add the payee's email first; the onboarding link goes only to them");
     return r;
   });
   let accountId = recipient.stripeAccountId;
@@ -95,7 +98,7 @@ export async function startOnboarding(db: Db, tenant: Tenant, recipientId: strin
     );
     accountId = account.id;
     await withTenant(db, tenant, async (q) => {
-      await q.query("update money_recipients set stripe_account_id = $2, onboarding_status = $3 where id = $1 and stripe_account_id is null", [
+      await q.query("update money_recipients set stripe_account_id = $2, onboarding_status = $3, destination_changed_at = now() where id = $1 and stripe_account_id is null", [
         recipientId,
         account.id,
         onboardingStatusOf(account),
