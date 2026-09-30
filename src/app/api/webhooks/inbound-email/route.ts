@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Postmark-style inbound email. Authenticated with HTTP Basic (secret as the
- * password) or ?secret=, both compared in constant time against
+ * password), compared in constant time against
  * INBOUND_EMAIL_SECRET. Routed to a workspace by its in+<token>@ address.
  */
 export async function POST(req: Request) {

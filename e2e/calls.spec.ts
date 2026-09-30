@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { devSignIn, MARISOL, uniq } from "./helpers";
+import { DEMO, devSignIn, MARISOL, uniq } from "./helpers";
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -8,7 +8,7 @@ test("call task: consent gates recording, notes are filed, a manual commitment r
   await page.goto("/calls/new");
   const purpose = uniq("Confirm casita and late checkout");
   await page.getByLabel("Trip", { exact: true }).selectOption({ label: "Mexico City & Oaxaca — 20th anniversary" });
-  await page.getByLabel("Supplier contact").selectOption({ label: "Rafael Montes — General Manager, Hacienda Tierra Roja" });
+  await page.getByLabel("Supplier contact").selectOption(DEMO.gm);
   await page.getByLabel("Purpose").fill(purpose);
   await page.getByLabel("The ask").fill("Confirm late checkout to 2pm on departure day");
   await page.getByLabel("What counts as done").fill("Rafael confirms in writing");

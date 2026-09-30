@@ -16,13 +16,20 @@ import { DomainError } from "@/domain/common";
 import { config } from "../config";
 import { newToken, sha256 } from "../crypto";
 import { SYSTEM_FOOTER, type Mailer } from "../mail";
-import { hit } from "../rateLimit";
+import { enforceLimit, hit } from "../rateLimit";
 
 const LOGIN_TOKEN_MINUTES = 15;
 const INVITE_DAYS = 7;
 
 export const normalizeEmail = (e: string): string => e.trim().toLowerCase();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Names appear in emails the platform sends, so they can't carry links or markup. */
+function plainName(value: string, what: string): string {
+  const v = value.trim();
+  if (v.length > 80 || /https?:|www\.|[<>]/i.test(v)) throw new DomainError("bad_name", `Use a plain ${what} (no links, at most 80 characters)`);
+  return v;
+}
 
 export interface SessionInfo {
   sessionId: string;
@@ -116,6 +123,9 @@ export async function devLogin(db: Db, email: string, now = new Date()): Promise
   if (config().ALLOW_DEV_LOGIN !== "1" || config().NODE_ENV === "production") throw new DomainError("forbidden", "Dev login is disabled");
   return withSystem(db, async (q) => {
     const e = normalizeEmail(email);
+    // Only existing members (the seeded demo accounts in practice): dev sign-in never creates accounts.
+    const member = await q.query("select 1 from members where lower(email) = $1 and disabled_at is null", [e]);
+    if (!member.rows.length) throw new DomainError("forbidden", "Dev sign-in is only for existing members");
     let user = (await q.query<{ id: string }>("select id from users where email = $1", [e])).rows[0];
     if (!user) {
       user = { id: randomUUID() };
@@ -185,6 +195,9 @@ export async function createWorkspace(
 ): Promise<{ workspaceId: string; memberId: string }> {
   const name = input.workspaceName.trim();
   if (name.length < 2) throw new DomainError("bad_name", "Workspace name is too short");
+  plainName(name, "workspace name");
+  plainName(input.memberName, "name");
+  await enforceLimit(db, [{ bucket: `workspace:user:${input.userId}`, limit: 3, windowSeconds: 86_400 }], "Workspace limit reached for today.");
   return withSystem(db, async (q) => {
     const user = (await q.query<{ email: string }>("select email from users where id = $1", [input.userId])).rows[0];
     if (!user) throw new DomainError("not_found", "User not found");
@@ -214,6 +227,10 @@ export async function inviteMember(
 ): Promise<string> {
   const email = normalizeEmail(input.email);
   if (!EMAIL_RE.test(email)) throw new DomainError("bad_email", "Enter a valid email address");
+  await enforceLimit(db, [
+    { bucket: `invite:member:${input.invitedBy}`, limit: 20, windowSeconds: 3600 },
+    { bucket: `invite:ws:${input.workspaceId}`, limit: 50, windowSeconds: 86_400 },
+  ], "Invitation limit reached for now; try again later.", now);
   const token = newToken();
   const { workspaceName, inviterName } = await withSystem(db, async (q) => {
     const inviter = (
@@ -264,7 +281,7 @@ export async function acceptInvitation(db: Db, input: { token: string; userId: s
       memberId,
       inv.workspace_id,
       input.userId,
-      input.name.trim() || user.email,
+      plainName(input.name, "name") || user.email,
       user.email,
       inv.role,
       input.timeZone,

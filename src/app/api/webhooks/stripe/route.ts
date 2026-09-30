@@ -1,3 +1,4 @@
+import { readBodyCapped } from "@/lib/body";
 import { ingestStripeWebhook } from "@/modules/money/webhook";
 import { config } from "@/server/config";
 import { getDb } from "@/server/db";
@@ -13,10 +14,8 @@ const MAX_BODY_BYTES = 512 * 1024;
  * for duplicates so Stripe stops redelivering them.
  */
 export async function POST(req: Request) {
-  const length = Number(req.headers.get("content-length") ?? "0");
-  if (length > MAX_BODY_BYTES) return new Response("Payload too large", { status: 413 });
-  const raw = await req.text();
-  if (raw.length > MAX_BODY_BYTES) return new Response("Payload too large", { status: 413 });
+  const raw = await readBodyCapped(req, MAX_BODY_BYTES);
+  if (raw === null) return new Response("Payload too large", { status: 413 });
   const result = await ingestStripeWebhook(await getDb(), raw, req.headers.get("stripe-signature"), config().STRIPE_WEBHOOK_SECRET, new Date());
   if (result.status !== 200) {
     log.warn({ status: result.status, reason: result.error }, "stripe webhook rejected");

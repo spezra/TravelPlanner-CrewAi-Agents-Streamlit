@@ -2,20 +2,7 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-const csp = [
-  "default-src 'self'",
-  // Next.js inlines small bootstrap scripts; 'unsafe-eval' only for dev tooling.
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "media-src 'self' blob:",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-].join("; ");
+// The Content-Security-Policy is set per request with a script nonce in src/proxy.ts.
 
 const config: NextConfig = {
   poweredByHeader: false,
@@ -24,10 +11,11 @@ const config: NextConfig = {
   experimental: { serverActions: { bodySizeLimit: "30mb" } },
   async headers() {
     return [
+      // JSON endpoints never render content.
+      { source: "/api/:path*", headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'" }] },
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

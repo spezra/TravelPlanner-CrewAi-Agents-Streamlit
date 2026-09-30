@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   description: "Operating environment for luxury travel experts: agents do the work, experts keep the judgment.",
 };
 
+/** Every page renders per request, so each gets its own CSP nonce (src/proxy.ts). */
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f3efe8" },

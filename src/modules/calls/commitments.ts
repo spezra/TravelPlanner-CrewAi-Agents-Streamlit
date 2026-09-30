@@ -3,6 +3,7 @@
  * to the traveler, and the written recap of our understanding. Evidence (how
  * we know) and state (what is happening) stay separate throughout.
  */
+import { enforceLimit } from "@/server/rateLimit";
 import { randomUUID } from "node:crypto";
 import { draftRecap as agentDraftRecap } from "@/agents/recapDrafter";
 import type { StructuredLLM } from "@/agents/llm";
@@ -196,6 +197,10 @@ export async function sendRecap(
   input: { ids: string[]; to: string; subject: string; body: string },
   now: Date,
 ): Promise<string> {
+  await enforceLimit(db, [
+    { bucket: `recap:member:${tenant.memberId}`, limit: 30, windowSeconds: 3600 },
+    { bucket: `recap:ws:${tenant.workspaceId}`, limit: 200, windowSeconds: 86_400 },
+  ], "Recap limit reached for now; try again later.", now);
   const to = input.to.trim().toLowerCase();
   if (!EMAIL_RE.test(to)) throw new DomainError("bad_email", "Enter the supplier's email address");
   const subject = input.subject.trim().replace(/[\r\n]+/g, " ");

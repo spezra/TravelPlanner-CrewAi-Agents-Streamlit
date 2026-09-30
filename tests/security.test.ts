@@ -150,3 +150,31 @@ describe("application-level authority", () => {
     expect(clientIp(h({ "x-real-ip": "198.51.100.1" }), 1)).toBe("198.51.100.1");
   });
 });
+
+describe("email abuse limits", () => {
+  it("caps invitations per member and refuses link-bearing workspace names", async () => {
+    const { inviteMember, createWorkspace } = await import("@/server/auth/core");
+    const { MemoryMailer } = await import("@/server/mail");
+    const mail = new MemoryMailer();
+    for (let i = 0; i < 20; i++) await inviteMember(db, mail, { workspaceId: DEMO.workspace, invitedBy: DEMO.expert, email: `p${i}@example.com`, role: "assistant" });
+    await expect(inviteMember(db, mail, { workspaceId: DEMO.workspace, invitedBy: DEMO.expert, email: "p20@example.com", role: "assistant" })).rejects.toThrow(/limit/);
+    await expect(
+      createWorkspace(db, { userId: randomUUID(), sessionId: randomUUID(), workspaceName: "Account suspended - verify at https://evil.example", memberName: "x", bookPortability: "advisor_owns", timeZone: "UTC" }),
+    ).rejects.toThrow(/no links/);
+  });
+});
+
+describe("request bodies", () => {
+  it("caps chunked bodies regardless of Content-Length", async () => {
+    const { readBodyCapped } = await import("@/lib/body");
+    const big = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (let i = 0; i < 20; i++) c.enqueue(new Uint8Array(1024));
+        c.close();
+      },
+    });
+    const req = new Request("https://x.test/", { method: "POST", body: big, duplex: "half" } as RequestInit);
+    expect(await readBodyCapped(req, 10 * 1024)).toBeNull();
+    expect(await readBodyCapped(new Request("https://x.test/", { method: "POST", body: "ok" }), 10)).toBe("ok");
+  });
+});

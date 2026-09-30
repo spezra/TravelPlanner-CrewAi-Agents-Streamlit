@@ -4,6 +4,7 @@
  * payment-method id with its brand, last four digits and expiry, linked to the
  * client. That keeps the platform out of PCI scope for card data.
  */
+import { enforceLimit } from "@/server/rateLimit";
 import type { Db, Queryable } from "@/db/client";
 import { withTenant, type Tenant } from "@/db/tenant";
 import { DomainError } from "@/domain/common";
@@ -17,6 +18,12 @@ import * as repo from "./repo";
  * prepare this: collecting a card spends nothing.
  */
 export async function createCardSetupLink(db: Db, tenant: Tenant, input: { clientId: string; email: string | null }, deps: MoneyDeps, now: Date): Promise<string> {
+  if (input.email) {
+    await enforceLimit(db, [
+      { bucket: `cardlink:member:${tenant.memberId}`, limit: 20, windowSeconds: 3600 },
+      { bucket: `cardlink:ws:${tenant.workspaceId}`, limit: 100, windowSeconds: 86_400 },
+    ], "Card-link limit reached for now; try again later.", now);
+  }
   const stripe = requireStripe(deps);
   const prep = await withTenant(db, tenant, async (q) => {
     const { rows } = await q.query<{ name: string }>("select name from clients where id = $1", [input.clientId]);

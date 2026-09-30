@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3200;
+// The e2e server runs no worker: journeys that need background jobs drive them through /api/cron.
+process.env.CRON_SECRET ??= "e2e-cron-secret";
 export const MAIL_FILE = "test-results/e2e-mail.jsonl";
 
 /**
@@ -33,6 +35,7 @@ export default defineConfig({
       PGLITE_DIR: ".data-e2e/pglite",
       LOG_LEVEL: "warn",
       SEED_DEMO: "1",
+      CRON_SECRET: process.env.CRON_SECRET,
       ...(process.env.E2E_DATABASE_URL ? { DATABASE_URL: process.env.E2E_DATABASE_URL } : {}),
     },
   },

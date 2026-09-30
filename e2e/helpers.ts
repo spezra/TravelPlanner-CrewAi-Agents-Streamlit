@@ -38,11 +38,20 @@ export const CAMILLE = /Camille Roux/;
 /** A short unique suffix so journeys never collide with each other's data. */
 export const uniq = (prefix: string) => `${prefix} ${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
 
+/** A unique letters-only word (digits could be redacted as figures). */
+export const uniqWord = (prefix: string) =>
+  `${prefix}${Array.from({ length: 8 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join("")}`;
+
 /** Create a trip through the UI as the signed-in member; returns its id. */
-export async function createTrip(page: Page, title: string, opts: { client?: string } = {}): Promise<string> {
+export async function createTrip(page: Page, title: string, opts: { client?: string; startsInDays?: number; nights?: number } = {}): Promise<string> {
   await page.goto("/trips/new");
   await page.getByLabel("Title").fill(title);
   if (opts.client) await page.getByLabel("Client").selectOption({ label: opts.client });
+  if (opts.startsInDays !== undefined) {
+    const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    await page.getByLabel("Starts").fill(day(opts.startsInDays));
+    await page.getByLabel("Ends").fill(day(opts.startsInDays + (opts.nights ?? 5)));
+  }
   await page.getByRole("button", { name: "Create trip" }).click();
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   return /\/trips\/([0-9a-f-]{36})/.exec(page.url())![1]!;

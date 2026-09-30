@@ -92,7 +92,9 @@ describe("inbound webhook", () => {
       ).status,
     ).toBe(503);
 
-    const first = await deliver(payload(), { query: SECRET });
+    // The right secret in the URL is refused too: it would end up in access logs.
+    expect((await deliver(payload(), { query: SECRET })).status).toBe(401);
+    const first = await deliver(payload(), { basic: SECRET });
     expect(first.status).toBe(200);
     expect(await first.json()).toMatchObject({ status: "stored" });
     const second = await deliver(payload());

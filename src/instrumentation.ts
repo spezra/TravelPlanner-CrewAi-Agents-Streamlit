@@ -10,5 +10,10 @@ export async function onRequestError(err: unknown, request: { path: string; meth
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { log } = await import("./server/log");
   const e = err as Error & { digest?: string };
-  log.error({ digest: e.digest, err: e.message, stack: e.stack, method: request.method, path: request.path.split("?")[0], route: context.routePath, type: context.routeType }, "request error");
+  log.error({ digest: e.digest, err: e.message, stack: e.stack, method: request.method, path: redactPath(request.path), route: context.routePath, type: context.routeType }, "request error");
+}
+
+/** Paths can carry credentials (client portal tokens); never log them, or the query string. */
+export function redactPath(path: string): string {
+  return path.split("?")[0]!.replace(/^\/portal\/[^/]+/, "/portal/[token]");
 }

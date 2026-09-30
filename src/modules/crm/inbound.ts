@@ -5,6 +5,7 @@
  * agent into suggestions. Nothing but "this message arrived" is recorded until
  * a member accepts a suggestion.
  */
+import { readBodyCapped } from "@/lib/body";
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Db, Queryable } from "@/db/client";
@@ -102,11 +103,9 @@ const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 export const MAX_INBOUND_REQUEST_BYTES = 40 * 1024 * 1024;
 
-/** HTTP Basic (any username, secret as password) or ?secret=, compared in constant time. */
+/** HTTP Basic (any username, secret as password), compared in constant time. Never in the URL, where it would reach access logs. */
 export function inboundAuthorized(req: Request, secret: string | undefined): boolean {
   if (!secret) return false;
-  const q = new URL(req.url).searchParams.get("secret");
-  if (q !== null) return safeEqual(q, secret);
   const auth = req.headers.get("authorization") ?? "";
   if (!auth.toLowerCase().startsWith("basic ")) return false;
   const decoded = Buffer.from(auth.slice(6).trim(), "base64").toString("utf8");
@@ -230,11 +229,11 @@ export async function ingestInboundEmail(db: Db, payload: InboundPayload, deps: 
 export async function handleInboundWebhook(req: Request, deps: { db: Db; secret: string | undefined; domain: string | null; blobs: BlobStore; now: Date }): Promise<Response> {
   if (!deps.secret) return new Response("Inbound email is not configured", { status: 503 });
   if (!inboundAuthorized(req, deps.secret)) return new Response("Unauthorized", { status: 401 });
-  const len = Number(req.headers.get("content-length") ?? "0");
-  if (len > MAX_INBOUND_REQUEST_BYTES) return new Response("Payload too large", { status: 413 });
+  const raw = await readBodyCapped(req, MAX_INBOUND_REQUEST_BYTES);
+  if (raw === null) return new Response("Payload too large", { status: 413 });
   let json: unknown;
   try {
-    json = await req.json();
+    json = JSON.parse(raw);
   } catch {
     return new Response("Invalid JSON", { status: 400 });
   }

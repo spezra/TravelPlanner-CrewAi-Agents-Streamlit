@@ -13,3 +13,24 @@ export async function hit(q: Queryable, bucket: string, limit: number, windowSec
   );
   return (rows[0]?.hits ?? 0) <= limit;
 }
+
+/**
+ * Throws when a member or workspace exceeds a limit on something that makes
+ * the platform send email or create accounts (abuse and sender-reputation
+ * protection). Runs in its own system transaction.
+ */
+export async function enforceLimit(
+  db: import("@/db/client").Db,
+  limits: readonly { bucket: string; limit: number; windowSeconds: number }[],
+  message = "You've reached the limit for this for now. Try again later.",
+  now = new Date(),
+): Promise<void> {
+  const { withSystem } = await import("@/db/tenant");
+  const { DomainError } = await import("@/domain/common");
+  const ok = await withSystem(db, async (q) => {
+    let all = true;
+    for (const l of limits) all = (await hit(q, l.bucket, l.limit, l.windowSeconds, now)) && all;
+    return all;
+  });
+  if (!ok) throw new DomainError("rate_limited", message);
+}

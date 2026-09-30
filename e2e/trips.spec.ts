@@ -28,6 +28,15 @@ test("expert builds a trip, requests approval and approves; the assistant cannot
   await expect(asDiego).toContainText("Waiting for Marisol Vega to decide.");
   await expect(asDiego.getByRole("button", { name: /Approve all/ })).toHaveCount(0);
 
+  // Today still offers Approve to the assistant; the server must refuse it.
+  await page.goto("/");
+  const todayCard = page.locator("section.card").filter({ has: page.locator(`a[href="/trips/${tripId}"]`) });
+  await todayCard.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page).toHaveURL(/\?error=/);
+  await expect(page.getByText("Only the trip owner or a workspace owner can decide money approvals")).toBeVisible();
+  await page.goto(`/trips/${tripId}`);
+  await expect(page.locator("section.card", { hasText: `book ${hotel}` }).first()).toContainText("pending");
+
   // The expert approves on the trip page.
   await devSignIn(page, MARISOL);
   await page.goto(`/trips/${tripId}`);

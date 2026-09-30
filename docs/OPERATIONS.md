@@ -30,12 +30,13 @@ Validated at startup by `src/server/config.ts`; production refuses to boot witho
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | per feature | Gmail/Calendar import. |
 | `INBOUND_EMAIL_SECRET`, `INBOUND_EMAIL_DOMAIN` | per feature | Inbound email webhook. |
 | `SESSION_TTL_DAYS`, `LOG_LEVEL` | no | Defaults 30 and `info`. |
+| `TRUSTED_PROXY_HOPS` | no | Proxies in front of the app that append to `X-Forwarded-For` (default 1). Used for per-IP rate limits. |
 
 `ALLOW_DEV_LOGIN` and `E2E_MAIL_FILE` are test-only; the first is rejected in production.
 
 ## Database
 
-- **Roles.** Migrations create `app_user` (tenant, RLS-bound) and `app_system` (platform) and grant both to the connecting owner. Code switches with `SET LOCAL ROLE` inside each transaction (`withTenant` / `withSystem`). The owner itself sees no rows because RLS is forced.
+- **Roles.** Migrations create `app_user` (tenant, RLS-bound) and `app_system` (platform) and grant both to the connecting owner with `SET` but not `INHERIT` (Postgres 16+). Code switches with `SET LOCAL ROLE` inside each transaction (`withTenant` / `withSystem`). The owner itself sees no rows because RLS is forced.
 - **First deploy:** create the owner role with `CREATEROLE` (it creates the two NOLOGIN roles), create the database owned by it, run `npm run db:migrate`.
 - **Backups.** Enable point-in-time recovery on the managed Postgres; test a restore quarterly. Blobs: enable bucket versioning with a lifecycle rule that matches the workspace retention settings. Backups contain ciphertext for sensitive fields; they are useless without `MASTER_KEY`, so back the key up separately (secret manager with its own recovery).
 - **Pooling.** Each process uses a `pg` pool (default 10). With PgBouncer use *session* pooling; `SET LOCAL` requires a transaction on one server connection (transaction pooling also works because every tenant query runs inside an explicit transaction).
@@ -61,7 +62,7 @@ Validated at startup by `src/server/config.ts`; production refuses to boot witho
 | Stripe Connect | Secret key + webhook secret. Subscribe to `account.updated`, `transfer.created`, `transfer.reversed`, `payout.failed`, `checkout.session.completed`, `setup_intent.succeeded`. | `POST {APP_URL}/api/webhooks/stripe`. Without Stripe, payouts fall back to settlement instructions and the card vault is unavailable. |
 | Deepgram | API key. | Transcription runs in `calls.transcribe` jobs; without a key recordings are marked failed with a retry button. |
 | Google (Gmail + Calendar import) | OAuth client (web) with redirect URI `{APP_URL}/api/integrations/google/callback`; scopes `gmail.readonly`, `calendar.readonly`, `openid`, `email`. Gmail restricted scopes need Google verification before external users. | Tokens stored encrypted per member; daily sync `crm.google_sync`. Revoked grants mark the integration disconnected and notify the member. |
-| Inbound email | Point a catch-all route for `in+*@{INBOUND_EMAIL_DOMAIN}` at a provider that posts Postmark-style inbound JSON to the webhook, authenticated with `INBOUND_EMAIL_SECRET` (HTTP Basic password or `?secret=`). | `POST {APP_URL}/api/webhooks/inbound-email`. Each workspace's address is shown on its Integrations page. |
+| Inbound email | Point a catch-all route for `in+*@{INBOUND_EMAIL_DOMAIN}` at a provider that posts Postmark-style inbound JSON to the webhook, authenticated with `INBOUND_EMAIL_SECRET` (HTTP Basic password; never in the URL). | `POST {APP_URL}/api/webhooks/inbound-email`. Each workspace's address is shown on its Integrations page. |
 | Anthropic | API key. | All agents; without it features degrade to manual input. |
 
 ### Curated network
