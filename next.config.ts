@@ -18,7 +18,6 @@ const csp = [
 ].join("; ");
 
 const config: NextConfig = {
-  output: "standalone",
   poweredByHeader: false,
   // PGlite ships a WASM build of Postgres; load it from node_modules at runtime instead of bundling it.
   serverExternalPackages: ["@electric-sql/pglite", "pg", "pino", "nodemailer"],

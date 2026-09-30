@@ -38,7 +38,14 @@ export async function createPgDb(connectionString: string): Promise<Db> {
       const client = await pool.connect();
       try {
         await client.query("begin");
-        const out = await fn({ query: async <T>(sql: string, params?: unknown[]) => ({ rows: (await client.query(sql, params)).rows as T[] }) });
+        // One connection runs one statement at a time; queue calls made concurrently (e.g. Promise.all) instead of overlapping them.
+        let chain: Promise<unknown> = Promise.resolve();
+        const query = <T>(sql: string, params?: unknown[]) => {
+          const run = chain.then(async () => ({ rows: (await client.query(sql, params)).rows as T[] }));
+          chain = run.catch(() => undefined);
+          return run;
+        };
+        const out = await fn({ query });
         await client.query("commit");
         return out;
       } catch (err) {

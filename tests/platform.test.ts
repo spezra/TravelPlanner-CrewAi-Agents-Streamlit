@@ -171,3 +171,21 @@ describe("job queue", () => {
     expect(await releaseStale(db, 900)).toBe(1);
   });
 });
+
+describe("key rotation", () => {
+  it("re-wraps data keys under a new master key and rotates data keys without losing old content", async () => {
+    const { rewrapAllKeys, rotateWorkspaceKey } = await import("@/server/crypto");
+    const t = { workspaceId: DEMO.workspace, memberId: DEMO.expert };
+    const oldSealed = await withTenant(db, t, (q) => encryptFor(q, DEMO.workspace, "c", "before"));
+    const v2 = await withSystem(db, (q) => rotateWorkspaceKey(q, DEMO.workspace));
+    const newSealed = await withTenant(db, t, (q) => encryptFor(q, DEMO.workspace, "c", "after"));
+    expect(newSealed.startsWith(`v${v2}.`)).toBe(true);
+    const dev = Buffer.alloc(32, 7).toString("base64");
+    const next = Buffer.alloc(32, 9).toString("base64");
+    await withSystem(db, (q) => rewrapAllKeys(q, dev, next));
+    // Rewrap back so the dev master key (used by this process) can read again.
+    await withSystem(db, (q) => rewrapAllKeys(q, next, dev));
+    expect(await withTenant(db, t, (q) => decryptFor(q, DEMO.workspace, "c", oldSealed))).toBe("before");
+    expect(await withTenant(db, t, (q) => decryptFor(q, DEMO.workspace, "c", newSealed))).toBe("after");
+  });
+});

@@ -14,7 +14,8 @@
     "db:seed": "tsx src/db/seed-cli.ts",
     "worker": "tsx src/worker.ts",
     "test:pg": "TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgres://app_owner:app@127.0.0.1:5433/platform_test} vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "keys:rotate-master": "tsx src/scripts/rotate-master-key.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

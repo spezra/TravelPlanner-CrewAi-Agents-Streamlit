@@ -22,6 +22,8 @@ export class MemoryMailer implements Mailer {
   readonly sent: OutboundEmail[] = [];
   async send(msg: OutboundEmail): Promise<void> {
     this.sent.push(msg);
+    const sink = config().E2E_MAIL_FILE;
+    if (sink && config().NODE_ENV !== "production") await (await import("node:fs/promises")).appendFile(sink, JSON.stringify(msg) + "\n");
     log.info({ subject: msg.subject }, "email captured (dev mailer)");
     if (config().NODE_ENV === "development") console.log(`\n--- email to ${msg.to} ---\n${msg.subject}\n\n${msg.text}\n---\n`);
   }

@@ -1,0 +1,51 @@
+# Local production-like stack: Postgres, one-shot migrations, web, worker, and a
+# mail catcher. `docker compose up --build`, then open http://localhost:3000
+# and read sign-in emails at http://localhost:8025.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app_owner
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: platform
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_owner -d platform"]
+      interval: 2s
+      retries: 30
+    volumes: [pgdata:/var/lib/postgresql/data]
+  mail:
+    image: axllent/mailpit
+    ports: ["8025:8025"]
+  migrate:
+    build: .
+    command: ["npm", "run", "db:migrate"]
+    environment: &env
+      NODE_ENV: production
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://app_owner:app@db:5432/platform
+      MASTER_KEY: ${MASTER_KEY:?set MASTER_KEY (openssl rand -base64 32)}
+      CRON_SECRET: ${CRON_SECRET:-change-me}
+      SMTP_URL: smtp://mail:1025
+      EMAIL_FROM: "Travel Platform <no-reply@example.com>"
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: /app/.data/blobs
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db: { condition: service_healthy }
+  web:
+    build: .
+    environment: *env
+    ports: ["3000:3000"]
+    volumes: [blobs:/app/.data/blobs]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+  worker:
+    build: .
+    command: ["npm", "run", "worker"]
+    environment: { <<: *env, SERVICE_NAME: worker }
+    volumes: [blobs:/app/.data/blobs]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+volumes:
+  pgdata:
+  blobs:

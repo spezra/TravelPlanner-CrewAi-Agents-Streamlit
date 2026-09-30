@@ -8,6 +8,18 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    env:
+      # Tests connect as a non-superuser table owner, the way production does, so forced RLS applies.
+      TEST_DATABASE_URL: postgres://app_owner:app@localhost:5432/platform_test
+      E2E_DATABASE_URL: postgres://app_owner:app@localhost:5432/platform_e2e
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,6 +27,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Create non-superuser database owner
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c "create role app_owner login password 'app' createrole"
+          psql -h localhost -U postgres -c "create database platform_test owner app_owner"
+          psql -h localhost -U postgres -c "create database platform_e2e owner app_owner"
       - run: npm run typecheck
-      - run: npm test
+      - name: Unit and integration tests (embedded Postgres)
+        run: npx vitest run
+        env:
+          TEST_DATABASE_URL: ""
+      - name: Integration tests (real Postgres, non-superuser)
+        run: npx vitest run
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: End-to-end tests (real Postgres)
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report

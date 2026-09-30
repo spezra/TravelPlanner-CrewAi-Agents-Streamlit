@@ -106,3 +106,36 @@ export async function shredWorkspaceKeys(q: Queryable, workspaceId: string): Pro
   await q.query("delete from workspace_keys where workspace_id = $1", [workspaceId]);
   for (const k of keyCache.keys()) if (k.startsWith(`${workspaceId}:`)) keyCache.delete(k);
 }
+
+/**
+ * Master-key rotation: re-wrap every workspace data key under a new master key.
+ * Content encrypted with the data keys is untouched. Run inside withSystem.
+ */
+export async function rewrapAllKeys(q: Queryable, oldMasterB64: string, newMasterB64: string): Promise<number> {
+  const oldKey = Buffer.from(oldMasterB64, "base64");
+  const newKey = Buffer.from(newMasterB64, "base64");
+  if (oldKey.length !== 32 || newKey.length !== 32) throw new Error("Master keys must be 32 bytes, base64-encoded");
+  const { rows } = await q.query<{ workspace_id: string; version: number; wrapped_key: string }>("select workspace_id, version, wrapped_key from workspace_keys");
+  for (const r of rows) {
+    const aad = `wk:${r.workspace_id}:${r.version}`;
+    const raw = open(oldKey, r.wrapped_key, aad);
+    await q.query("update workspace_keys set wrapped_key = $3 where workspace_id = $1 and version = $2", [r.workspace_id, r.version, seal(newKey, raw, aad)]);
+  }
+  keyCache.clear();
+  return rows.length;
+}
+
+/**
+ * Data-key rotation for one workspace: new content uses a new key version;
+ * older versions stay available for decryption until re-encrypted.
+ */
+export async function rotateWorkspaceKey(q: Queryable, workspaceId: string): Promise<number> {
+  const { rows } = await q.query<{ v: number | null }>("select max(version) as v from workspace_keys where workspace_id = $1", [workspaceId]);
+  const version = (rows[0]?.v ?? 0) + 1;
+  await q.query("insert into workspace_keys (workspace_id, version, wrapped_key) values ($1, $2, $3)", [
+    workspaceId,
+    version,
+    seal(masterKey(), randomBytes(32), `wk:${workspaceId}:${version}`),
+  ]);
+  return version;
+}

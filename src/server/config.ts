@@ -13,6 +13,8 @@ const Env = z.object({
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   /** Development and e2e only: allows one-click sign-in as a seeded demo member. */
   ALLOW_DEV_LOGIN: z.enum(["0", "1"]).default("0"),
+  /** Tests only: append every outbound email as a JSON line to this file (ignored in production). */
+  E2E_MAIL_FILE: z.string().optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   SMTP_URL: z.string().optional(),
@@ -48,7 +50,9 @@ export function config(env: NodeJS.ProcessEnv = process.env): Config {
     if (parsed.STORAGE_DRIVER === "s3" && !parsed.S3_BUCKET) missing.push("S3_BUCKET" as never);
     if (missing.length) throw new Error(`Missing required production configuration: ${missing.join(", ")}`);
     if (parsed.ALLOW_DEV_LOGIN === "1") throw new Error("ALLOW_DEV_LOGIN must not be enabled in production");
-    if (!parsed.APP_URL.startsWith("https://")) throw new Error("APP_URL must be https in production");
+    const url = new URL(parsed.APP_URL);
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !local) throw new Error("APP_URL must be https in production");
   }
   if (env === process.env) cached = parsed;
   return parsed;

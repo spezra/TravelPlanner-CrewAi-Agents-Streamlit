@@ -12,12 +12,17 @@ async function open(): Promise<Db> {
   if (c.DATABASE_URL) {
     const db = await createPgDb(c.DATABASE_URL);
     // Production runs migrations as a release step (npm run db:migrate); dev/test migrate on boot.
-    if (c.NODE_ENV !== "production") await migrate(db);
+    if (c.NODE_ENV !== "production") {
+      const applied = await migrate(db);
+      // Demo data on a real database only when explicitly asked (e2e, review environments).
+      if (applied.includes("001_init.sql") && process.env.SEED_DEMO === "1") await seed(db);
+    }
     return db;
   }
   if (c.NODE_ENV === "production") throw new Error("DATABASE_URL is required in production");
-  await mkdir(".data", { recursive: true });
-  const db = await createPgliteDb({ dataDir: ".data/pglite" });
+  const dir = process.env.PGLITE_DIR ?? ".data/pglite";
+  await mkdir(dir, { recursive: true });
+  const db = await createPgliteDb({ dataDir: dir });
   const applied = await migrate(db);
   if (applied.includes("001_init.sql")) {
     await seed(db);

@@ -9,3 +9,7 @@ next-env.d.ts
 !.env.example
 .data/
 .DS_Store
+.data-e2e/
+test-results/
+playwright-report/
+.claude/worktrees/
