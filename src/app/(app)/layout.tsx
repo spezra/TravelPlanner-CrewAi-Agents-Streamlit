@@ -1,19 +1,17 @@
 import Link from "next/link";
+import { BRAND_NAME } from "@/lib/brand";
 import { requireMember } from "@/server/auth/session";
 import { signOut, switchWorkspace } from "../(auth)/actions";
-import { BRAND_NAME } from "@/lib/brand";
-import { NAV } from "./nav";
+import { NAV, NAV_SECONDARY } from "./nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { session, member } = await requireMember();
+  const visible = <T extends { roles?: string[] }>(n: T) => !n.roles || n.roles.includes(member.role);
   return (
     <div className="shell">
-      <header className="top">
-        <Link className="brand" href="/">
-          {BRAND_NAME}
-        </Link>
-        <nav className="nav">
-          {NAV.filter((n) => !n.roles || n.roles.includes(member.role)).map((n) => (
+      <div className="utility">
+        <nav className="subnav" aria-label="More">
+          {NAV_SECONDARY.filter(visible).map((n) => (
             <Link key={n.href} href={n.href}>
               {n.label}
             </Link>
@@ -29,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   </option>
                 ))}
               </select>
-              <button className="btn" type="submit">
+              <button className="linklike" type="submit">
                 Switch
               </button>
             </form>
@@ -40,11 +38,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {member.name} · {member.role}
           </span>
           <form action={signOut}>
-            <button className="btn" type="submit">
+            <button className="linklike" type="submit">
               Sign out
             </button>
           </form>
         </div>
+      </div>
+      <header className="top">
+        <Link className="brand" href="/">
+          {BRAND_NAME}
+        </Link>
+        <nav className="nav" aria-label="Primary">
+          {NAV.filter(visible).map((n) => (
+            <Link key={n.href} href={n.href}>
+              {n.label}
+            </Link>
+          ))}
+        </nav>
       </header>
       {children}
     </div>

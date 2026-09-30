@@ -1,20 +1,31 @@
 import type { Role } from "@/domain/common";
 
-/** Primary navigation. `roles` limits who sees an entry; the pages enforce access themselves. */
-export const NAV: { href: string; label: string; roles?: Role[] }[] = [
+export interface NavEntry {
+  href: string;
+  label: string;
+  /** Limits who sees the entry; pages enforce access themselves. */
+  roles?: Role[];
+}
+
+/** The daily work, in the header. */
+export const NAV: NavEntry[] = [
   { href: "/", label: "Today" },
+  { href: "/inbox", label: "Inbox" },
   { href: "/trips", label: "Trips" },
   { href: "/clients", label: "Clients" },
-  { href: "/calls", label: "Calls" },
-  { href: "/commitments", label: "Commitments" },
   { href: "/people", label: "Relationships" },
-  { href: "/inbox", label: "Inbox" },
-  { href: "/integrations", label: "Integrations", roles: ["owner", "advisor", "admin", "assistant"] },
-  { href: "/judgment", label: "Taste" },
+  { href: "/calls", label: "Calls" },
   { href: "/knowledge", label: "Knowledge" },
   { href: "/network", label: "Network" },
-  { href: "/collaborations", label: "Collaborations" },
   { href: "/money", label: "Money" },
+];
+
+/** Everything else, in a quieter second row. */
+export const NAV_SECONDARY: NavEntry[] = [
+  { href: "/commitments", label: "Commitments" },
+  { href: "/collaborations", label: "Collaborations" },
+  { href: "/judgment", label: "Taste model" },
+  { href: "/integrations", label: "Integrations" },
   { href: "/settings", label: "Settings" },
   { href: "/admin", label: "Admin", roles: ["owner", "admin"] },
 ];

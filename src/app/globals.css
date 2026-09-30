@@ -123,7 +123,12 @@ main { animation: arrive 0.6s var(--ease) both; }
   transition: color 0.3s var(--ease), border-color 0.3s var(--ease);
 }
 .nav a:hover { color: var(--ink); border-bottom-color: var(--line-strong); }
-.who { margin-left: auto; display: flex; gap: var(--space-3); align-items: center; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; }
+.utility { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) 0 0; flex-wrap: wrap; }
+.subnav { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.subnav a, .linklike { text-decoration: none; color: var(--muted); font: 400 10px/1.4 var(--sans); text-transform: uppercase; letter-spacing: var(--track); background: none; border: 0; padding: 0; cursor: pointer; }
+.subnav a:hover, .linklike:hover { color: var(--ink); }
+.nav { margin-left: auto; }
+.who { margin-left: auto; display: flex; gap: var(--space-3); align-items: center; color: var(--muted); font-size: 11px; letter-spacing: 0.04em; }
 
 .lede { color: var(--ink-soft); max-width: 60ch; margin: 0 0 var(--space-5); font-family: var(--serif); font-size: 20px; font-weight: 300; line-height: 1.5; }
 .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: var(--track-wide); color: var(--muted); margin-bottom: var(--space-2); }
@@ -239,6 +244,8 @@ ul.plain li { padding: 5px 0; }
   .who { margin-left: 0; width: 100%; flex-wrap: wrap; }
   .who select { flex: 1; min-width: 0; }
   .nav { gap: var(--space-3); }
+  .subnav { gap: var(--space-3); }
+  .nav { margin-left: 0; }
   h2 { margin-top: var(--space-5); }
   .lede { font-size: 18px; }
   /* Label and timing sit above the title on narrow screens. */
