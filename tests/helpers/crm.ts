@@ -12,7 +12,8 @@ export const assistant = { workspaceId: DEMO.workspace, memberId: DEMO.assistant
 export const backup = { workspaceId: DEMO.workspace, memberId: DEMO.backup };
 export const outsider = { workspaceId: DEMO.otherWorkspace, memberId: DEMO.otherExpert };
 
-export const seedCrmData = (db: Db) => withSystem(db, (q) => seedCrm(q, NOW));
+/** CRM demo data is part of the main seed now; kept as a no-op so tests read the same. */
+export const seedCrmData = async (_db: Db) => {};
 
 export function fakeLLM(output: unknown | StructuredResult<never>): StructuredLLM & { calls: number } {
   const fake = {

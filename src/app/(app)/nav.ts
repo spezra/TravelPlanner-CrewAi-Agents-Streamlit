@@ -7,5 +7,7 @@ export const NAV: { href: string; label: string; roles?: Role[] }[] = [
   { href: "/calls", label: "Calls" },
   { href: "/commitments", label: "Commitments" },
   { href: "/people", label: "Relationships" },
+  { href: "/inbox", label: "Inbox" },
+  { href: "/integrations", label: "Integrations", roles: ["owner", "advisor", "admin", "assistant"] },
   { href: "/settings", label: "Settings" },
 ];

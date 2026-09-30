@@ -3,6 +3,7 @@
  * schedules; they're combined here so the worker and tests see one list.
  */
 import * as calls from "@/modules/calls/jobs";
+import * as crm from "@/modules/crm/jobs";
 import * as proposals from "@/modules/proposals/jobs";
 import type { JobHandler } from "./queue";
 import type { Schedule } from "./scheduler";
@@ -19,6 +20,6 @@ const platform: Record<string, JobHandler> = {
   },
 };
 
-export const HANDLERS: Record<string, JobHandler> = { ...platform, ...proposals.handlers, ...calls.handlers };
+export const HANDLERS: Record<string, JobHandler> = { ...platform, ...proposals.handlers, ...calls.handlers, ...crm.handlers };
 
-export const SCHEDULES: Schedule[] = [{ kind: "platform.purge_expired", everyMinutes: 60 }, ...proposals.schedules, ...calls.schedules];
+export const SCHEDULES: Schedule[] = [{ kind: "platform.purge_expired", everyMinutes: 60 }, ...proposals.schedules, ...calls.schedules, ...crm.schedules];

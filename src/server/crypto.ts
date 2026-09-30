@@ -70,7 +70,8 @@ async function dataKey(q: Queryable, workspaceId: string, version?: number): Pro
     await q.query("insert into workspace_keys (workspace_id, version, wrapped_key) values ($1, 1, $2) on conflict do nothing", [workspaceId, wrapped]);
     return dataKey(q, workspaceId, 1);
   }
-  const cacheKey = `${workspaceId}:${row.version}`;
+  // Keyed by the wrapped key itself, so a replaced or re-created key can never be served stale.
+  const cacheKey = `${workspaceId}:${row.version}:${row.wrapped_key}`;
   let key = keyCache.get(cacheKey);
   if (!key) {
     key = open(masterKey(), row.wrapped_key, `wk:${workspaceId}:${row.version}`);
