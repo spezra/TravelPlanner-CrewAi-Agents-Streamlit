@@ -1,12 +1,12 @@
 import { listLedger, listPeople } from "@/db/repo";
 import { withTenant } from "@/db/tenant";
 import { currentRole, nudges, warmthEvidence } from "@/domain/crm";
-import { currentTenant, getDb } from "@/lib/server";
+import { getDb, requireMember } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function People() {
-  const me = await currentTenant();
+  const me = await requireMember();
   const now = new Date();
   const { people, ledger } = await withTenant(await getDb(), me.tenant, async (q) => ({ people: await listPeople(q), ledger: await listLedger(q) }));
 

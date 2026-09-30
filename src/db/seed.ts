@@ -53,6 +53,7 @@ export async function seed(db: Db, now = new Date()): Promise<void> {
   const minusDays = (n: number) => plusDays(-n);
 
   await db.transaction(async (q) => {
+    await q.query("set local role app_system");
     await q.query(`insert into workspaces (id, name, book_portability) values ($1, 'Marisol Vega Travel', 'advisor_owns'), ($2, 'Paris Atelier', 'advisor_owns')`, [
       d.workspace,
       d.otherWorkspace,

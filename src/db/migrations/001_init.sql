@@ -15,6 +15,9 @@ do $$ begin
 exception when others then null;
 end $$;
 
+-- Don't rely on the default PUBLIC grant on the schema (absent on hardened or recreated schemas).
+grant usage on schema public to app_user;
+
 create or replace function app_workspace() returns uuid language sql stable as
   $$ select nullif(current_setting('app.workspace_id', true), '')::uuid $$;
 create or replace function app_member() returns uuid language sql stable as
@@ -236,16 +239,7 @@ create table audit_events (
 -- ---------------------------------------------------------------------------
 -- Row-level security
 
-create or replace function can_see_trip(t_id uuid) returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from trips t
-    where t.id = t_id and t.workspace_id = app_workspace()
-      and (t.scope = 'workspace' or t.owner_id = app_member()
-           or exists (select 1 from trip_delegations d
-                      where d.trip_id = t.id and d.member_id = app_member()
-                        and (d.expires_at is null or d.expires_at > now())))
-  )
-$$;
+
 
 do $$
 declare t text;
@@ -259,7 +253,7 @@ begin
   end loop;
 end $$;
 grant usage, select on sequence audit_events_id_seq to app_user;
-grant execute on function app_workspace(), app_member(), can_see_trip(uuid) to app_user;
+grant execute on function app_workspace(), app_member() to app_user;
 
 create policy tenant on workspaces using (id = app_workspace());
 create policy tenant on members using (workspace_id = app_workspace()) with check (workspace_id = app_workspace());
@@ -277,17 +271,27 @@ create policy tenant on knowledge_items
   using (workspace_id = app_workspace() and (published_scope <> 'private' or owner_id = app_member()))
   with check (workspace_id = app_workspace());
 
-create policy tenant on trips using (can_see_trip(id)) with check (workspace_id = app_workspace());
+-- Trips: shared within the workspace, or private to the owner and named, unexpired delegates.
+create policy tenant on trips
+  using (workspace_id = app_workspace()
+         and (scope = 'workspace' or owner_id = app_member()
+              or exists (select 1 from trip_delegations d
+                         where d.trip_id = trips.id and d.member_id = app_member()
+                           and (d.expires_at is null or d.expires_at > now()))))
+  with check (workspace_id = app_workspace());
+-- Delegations are visible within the workspace (they grant access, they don't hold content).
+create policy tenant on trip_delegations using (workspace_id = app_workspace()) with check (workspace_id = app_workspace());
+-- Everything hanging off a trip is visible exactly when the trip is (the subquery is itself filtered by the trips policy).
 do $$
 declare t text;
 begin
-  foreach t in array array['trip_delegations','response_plans','trip_items','approvals','decisions']
+  foreach t in array array['response_plans','trip_items','approvals','decisions']
   loop
-    execute format('create policy tenant on %I using (workspace_id = app_workspace() and can_see_trip(trip_id)) with check (workspace_id = app_workspace())', t);
+    execute format('create policy tenant on %I using (workspace_id = app_workspace() and exists (select 1 from trips t where t.id = trip_id)) with check (workspace_id = app_workspace())', t);
   end loop;
 end $$;
 create policy tenant on commitments
-  using (workspace_id = app_workspace() and (trip_id is null or can_see_trip(trip_id)))
+  using (workspace_id = app_workspace() and (trip_id is null or exists (select 1 from trips t where t.id = trip_id)))
   with check (workspace_id = app_workspace());
 create policy tenant on brief_statements
   using (workspace_id = app_workspace() and exists (select 1 from clients c where c.id = client_id))

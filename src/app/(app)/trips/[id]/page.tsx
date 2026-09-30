@@ -6,7 +6,7 @@ import { briefForTrip, type BriefStatement } from "@/domain/brief";
 import { evidenceLabel } from "@/domain/commitments";
 import { formatMoney } from "@/domain/common";
 import { currentResponder } from "@/domain/responsePlan";
-import { currentTenant, getDb } from "@/lib/server";
+import { getDb, requireMember } from "@/lib/server";
 import { confirmCommitment, decideApproval } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ const STATE_TONE: Partial<Record<ItemState, "ok" | "warn" | "alert">> = {
 export default async function TripPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const { id } = await params;
   const { error } = await searchParams;
-  const me = await currentTenant();
+  const me = await requireMember();
   const now = new Date();
   const data = await withTenant(await getDb(), me.tenant, async (q) => {
     const trip = await getTrip(q, id);

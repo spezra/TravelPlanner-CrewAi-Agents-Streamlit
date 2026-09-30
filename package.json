@@ -11,24 +11,32 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed-cli.ts"
+    "db:seed": "tsx src/db/seed-cli.ts",
+    "worker": "tsx src/worker.ts",
+    "test:pg": "TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgres://app_owner:app@127.0.0.1:5433/platform_test} vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
+    "@aws-sdk/client-s3": "^3.1143.0",
     "@electric-sql/pglite": "^0.5.8",
     "next": "^16.3.7",
+    "nodemailer": "^10.0.13",
     "pg": "^8.23.0",
+    "pino": "^10.3.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^26.6.3",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^5.0.2"
   }

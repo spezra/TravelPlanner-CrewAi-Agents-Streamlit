@@ -1,32 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createPgliteDb, migrate, splitSql, type Db } from "@/db/client";
+import { beforeEach, describe, expect, it } from "vitest";
+import { splitSql, type Db } from "@/db/client";
 import * as repo from "@/db/repo";
-import { DEMO, seed } from "@/db/seed";
+import { DEMO } from "@/db/seed";
 import { withTenant } from "@/db/tenant";
 import type { MaterialTerms } from "@/domain/approvals";
 import { SimulatedSupplier, type Script } from "@/providers/simulated";
+import { NOW, useDb } from "./helpers/db";
 import { attentionQueue, bookItem, decide, fileCommitments, reconcileItem } from "@/services/operations";
 
-const NOW = new Date("2026-10-01T12:00:00Z");
 const expert = { workspaceId: DEMO.workspace, memberId: DEMO.expert };
 const assistant = { workspaceId: DEMO.workspace, memberId: DEMO.assistant };
 const backup = { workspaceId: DEMO.workspace, memberId: DEMO.backup };
 const outsider = { workspaceId: DEMO.otherWorkspace, memberId: DEMO.otherExpert };
 
-// Migrate and seed once, then start every test from a copy of that data directory.
-let snapshot: Blob | undefined;
+const getDb = useDb();
 let db: Db;
-beforeEach(async () => {
-  if (!snapshot) {
-    const fresh = await createPgliteDb();
-    await migrate(fresh);
-    await seed(fresh, NOW);
-    snapshot = await fresh.dump();
-    await fresh.close();
-  }
-  db = await createPgliteDb({ loadDataDir: snapshot });
+beforeEach(() => {
+  db = getDb();
 });
-afterEach(() => db.close());
 
 const approvedTerms = async (): Promise<MaterialTerms> => (await withTenant(db, expert, (q) => repo.getApproval(q, DEMO.approvalOaxaca)))!.terms;
 

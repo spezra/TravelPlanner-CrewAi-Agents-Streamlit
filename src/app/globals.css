@@ -77,3 +77,12 @@ ul.plain li { padding: 4px 0; }
   .who select { flex: 1; min-width: 0; }
   h1 { font-size: 25px; }
 }
+
+.narrow { max-width: 520px; }
+label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+input[type="text"], input[type="email"], input[type="number"], input[type="date"], input[type="datetime-local"], input[type="file"], textarea, .field {
+  width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+}
+textarea { min-height: 120px; }
+.notice { border-left: 3px solid var(--accent); padding: 10px 14px; background: var(--surface); margin: 12px 0; border-radius: 0 8px 8px 0; }
+.error { border-left-color: var(--alert); }

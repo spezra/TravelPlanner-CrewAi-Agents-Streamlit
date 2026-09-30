@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { AttentionItem } from "@/domain/attention";
-import { currentTenant, getDb } from "@/lib/server";
+import { getDb, requireMember } from "@/lib/server";
 import { attentionQueue } from "@/services/operations";
 import { confirmCommitment, decideApproval } from "./actions";
 
@@ -25,7 +25,7 @@ function due(mins: number): string {
 
 export default async function Today({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
-  const me = await currentTenant();
+  const me = await requireMember();
   const queue = await attentionQueue(await getDb(), me.tenant, new Date());
 
   return (

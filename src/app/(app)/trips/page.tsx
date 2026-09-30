@@ -2,12 +2,12 @@ import Link from "next/link";
 import { listItems, listTrips } from "@/db/repo";
 import { withTenant } from "@/db/tenant";
 import { summarizeTrip } from "@/domain/bookings";
-import { currentTenant, getDb } from "@/lib/server";
+import { getDb, requireMember } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function Trips() {
-  const me = await currentTenant();
+  const me = await requireMember();
   const trips = await withTenant(await getDb(), me.tenant, async (q) => {
     const list = await listTrips(q);
     return Promise.all(list.map(async (t) => ({ ...t, summary: summarizeTrip(await listItems(q, t.id)) })));
