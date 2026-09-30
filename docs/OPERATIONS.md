@@ -53,6 +53,27 @@ Validated at startup by `src/server/config.ts`; production refuses to boot witho
 - Stuck `running` jobs (worker crashed) are returned to the queue after 15 minutes.
 - Alert on: dead jobs > 0 in the last hour; oldest queued job older than 10 minutes; `/api/ready` failing.
 
+## Integrations
+
+| Integration | Setup | Endpoint / notes |
+|---|---|---|
+| Duffel (air) | Access token + webhook secret in env. Subscribe the webhook to `order.airline_initiated_change_detected`, `order.created`, `order.updated`. | `POST {APP_URL}/api/webhooks/duffel` (signature `X-Duffel-Signature`, 5-minute tolerance). Without the token, flight search shows a notice and Duffel booking is blocked; without the secret the endpoint returns 503. |
+| Stripe Connect | Secret key + webhook secret. Subscribe to `account.updated`, `transfer.created`, `transfer.reversed`, `payout.failed`, `checkout.session.completed`, `setup_intent.succeeded`. | `POST {APP_URL}/api/webhooks/stripe`. Without Stripe, payouts fall back to settlement instructions and the card vault is unavailable. |
+| Deepgram | API key. | Transcription runs in `calls.transcribe` jobs; without a key recordings are marked failed with a retry button. |
+| Google (Gmail + Calendar import) | OAuth client (web) with redirect URI `{APP_URL}/api/integrations/google/callback`; scopes `gmail.readonly`, `calendar.readonly`, `openid`, `email`. Gmail restricted scopes need Google verification before external users. | Tokens stored encrypted per member; daily sync `crm.google_sync`. Revoked grants mark the integration disconnected and notify the member. |
+| Inbound email | Point a catch-all route for `in+*@{INBOUND_EMAIL_DOMAIN}` at a provider that posts Postmark-style inbound JSON to the webhook, authenticated with `INBOUND_EMAIL_SECRET` (HTTP Basic password or `?secret=`). | `POST {APP_URL}/api/webhooks/inbound-email`. Each workspace's address is shown on its Integrations page. |
+| Anthropic | API key. | All agents; without it features degrade to manual input. |
+
+### Curated network
+
+Admission is platform-only (never self-serve). Workspaces apply from the Network page; operators decide:
+
+```bash
+DATABASE_URL=... npm run network:admin -- list
+DATABASE_URL=... npm run network:admin -- admit <workspace-id> --by "operator name"
+DATABASE_URL=... npm run network:admin -- remove <workspace-id> --by "operator name" --reason "..."
+```
+
 ## Webhooks
 
 All inbound webhooks verify signatures (Duffel, Stripe) or a shared secret (inbound email) with constant-time comparison, reject stale timestamps, and dedupe by event id. They return 2xx only after the event is durably recorded; processing happens in jobs.
