@@ -2,10 +2,11 @@
  * Registry of job handlers. Each feature module exports its handlers and
  * schedules; they're combined here so the worker and tests see one list.
  */
+import * as proposals from "@/modules/proposals/jobs";
 import type { JobHandler } from "./queue";
 import type { Schedule } from "./scheduler";
 
-export const HANDLERS: Record<string, JobHandler> = {
+const platform: Record<string, JobHandler> = {
   "platform.purge_expired": async ({ db }) => {
     const { withSystem } = await import("@/db/tenant");
     await withSystem(db, async (q) => {
@@ -17,4 +18,6 @@ export const HANDLERS: Record<string, JobHandler> = {
   },
 };
 
-export const SCHEDULES: Schedule[] = [{ kind: "platform.purge_expired", everyMinutes: 60 }];
+export const HANDLERS: Record<string, JobHandler> = { ...platform, ...proposals.handlers };
+
+export const SCHEDULES: Schedule[] = [{ kind: "platform.purge_expired", everyMinutes: 60 }, ...proposals.schedules];
