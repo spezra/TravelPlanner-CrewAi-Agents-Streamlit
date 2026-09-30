@@ -17,8 +17,12 @@ import { NOW, useDb } from "./helpers/db";
 
 const getDb = useDb();
 let db: Db;
-beforeEach(() => {
+beforeEach(async () => {
   db = getDb();
+  // Each test arranges network state itself; clear the demo network data and person links from the main seed.
+  // TRUNCATE needs table ownership, so this test-only reset runs on the owner connection.
+  await db.query("truncate collaboration_log, relationship_activations, collaboration_endorsements, collaboration_shares, collaboration_terms, collaborations, published_knowledge, network_profiles, network_members, knowledge_standing_rules cascade");
+  await withSystem(db, (q) => q.query("update knowledge_items set depends_on_person_id = null, needs_review = false"));
 });
 
 const expert: Tenant = { workspaceId: DEMO.workspace, memberId: DEMO.expert };
