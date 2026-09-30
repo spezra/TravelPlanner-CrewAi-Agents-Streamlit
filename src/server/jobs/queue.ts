@@ -71,7 +71,9 @@ export async function claim(db: Db, workerId: string, now = new Date()): Promise
   return withSystem(db, async (q) => {
     const { rows } = await q.query<Record<string, unknown>>(
       `update jobs set status = 'running', locked_at = $1, locked_by = $2, attempts = attempts + 1
-        where id = (select id from jobs where status = 'queued' and run_at <= $1 order by run_at, id for update skip locked limit 1)
+        -- JS clocks have millisecond precision and Postgres microsecond: a job scheduled with now() in SQL during the
+        -- same millisecond as $1 would otherwise look up to 999µs in the future.
+        where id = (select id from jobs where status = 'queued' and run_at < $1::timestamptz + interval '1 millisecond' order by run_at, id for update skip locked limit 1)
         returning id, kind, payload, workspace_id, member_id, attempts, max_attempts`,
       [now.toISOString(), workerId],
     );

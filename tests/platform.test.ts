@@ -189,3 +189,13 @@ describe("key rotation", () => {
     expect(await withTenant(db, t, (q) => decryptFor(q, DEMO.workspace, "c", newSealed))).toBe("after");
   });
 });
+
+describe("job claim precision", () => {
+  it("claims a job scheduled with SQL now() in the same millisecond as the claim", async () => {
+    const { claim } = await import("@/server/jobs/queue");
+    // run_at 0.9ms after the JS instant, as happens when SQL now() and new Date() share a millisecond.
+    const at = new Date("2026-10-01T12:00:00.123Z");
+    await withSystem(db, (q) => q.query("insert into jobs (kind, run_at) values ('ok', $1::timestamptz + interval '900 microseconds')", [at.toISOString()]));
+    expect(await claim(db, "t", at)).not.toBeNull();
+  });
+});
